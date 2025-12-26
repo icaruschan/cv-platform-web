@@ -1,0 +1,30 @@
+{
+  "name": "cv-generator-project",
+  "version": "1.0.0",
+  "description": "AI CV/Portfolio Generator with automated deployment",
+  "main": "api/server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "api": "node api/server.js",
+    "generate": "node scripts/orchestrator.js",
+    "deploy": "node scripts/deploy_service.js",
+    "inspire": "node scripts/inspiration_engine.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@mendable/firecrawl-js": "^4.9.3",
+    "@tavily/core": "^0.6.3",
+    "axios": "^1.13.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.0",
+    "openai": "^6.15.0",
+    "uuid": "^11.1.0"
+  }
+}
