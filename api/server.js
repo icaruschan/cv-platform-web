@@ -38,13 +38,13 @@ app.get('/health', (req, res) => {
  */
 app.post('/generate', async (req, res) => {
     try {
-        const { name, role, vibe, tagline, about, projects, skills, contact } = req.body;
+        const { name, vibe, briefContent, tagline, about, projects, skills, contact } = req.body;
 
-        // Validate required fields
-        if (!name || !role || !vibe) {
+        // Validate required fields (role is in briefContent, not needed separately)
+        if (!name || !vibe) {
             return res.status(400).json({
                 error: 'Missing required fields',
-                required: ['name', 'role', 'vibe']
+                required: ['name', 'vibe']
             });
         }
 
@@ -53,7 +53,7 @@ app.post('/generate', async (req, res) => {
         const job = {
             id: jobId,
             status: 'queued',
-            input: { name, role, vibe, tagline, about, projects, skills, contact },
+            input: { name, vibe, briefContent, tagline, about, projects, skills, contact },
             createdAt: new Date().toISOString(),
             outputPath: null,
             deployUrl: null,
