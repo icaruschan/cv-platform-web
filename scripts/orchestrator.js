@@ -231,6 +231,32 @@ async function runPipeline(job) {
         updateJob(job, { status: 'generating_site' });
         await generateSite();
 
+        // Step 4.5: Verify Build Locally (catch errors before Vercel deployment)
+        console.log('\n🔍 Step 4.5: Verifying Build Locally...');
+        updateJob(job, { status: 'verifying_build' });
+
+        try {
+            console.log('   📦 Installing dependencies...');
+            execSync('npm install', { cwd: outputDir, stdio: 'pipe' });
+
+            console.log('   🔨 Running production build...');
+            execSync('npm run build', { cwd: outputDir, stdio: 'pipe' });
+
+            console.log('   ✅ Build verification passed!');
+        } catch (buildError) {
+            const errorOutput = buildError.stderr?.toString() || buildError.stdout?.toString() || buildError.message;
+            console.error('   ❌ Build verification failed!');
+            console.error('   📋 Error details:');
+            console.error(errorOutput.split('\n').slice(-20).join('\n')); // Last 20 lines of error
+
+            updateJob(job, {
+                status: 'build_failed',
+                error: 'Build verification failed: ' + errorOutput.substring(0, 500)
+            });
+
+            throw new Error('Build verification failed. Check logs for TypeScript errors.');
+        }
+
         // Step 5: Deploy to Vercel
         console.log('\n🚀 Step 5/5: Deploying to Vercel...');
         updateJob(job, { status: 'deploying' });
