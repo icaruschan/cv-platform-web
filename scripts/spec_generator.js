@@ -291,7 +291,7 @@ ${section.description}
 
 Keep it under 40 lines. Be specific but concise.`;
 
-        const userMessage = `Moodboard:\n${moodboard}\n\nBrief:\n${brief.substring(0, 300)}`;
+        const userMessage = `Moodboard:\n${moodboard}\n\nBrief:\n${brief}`;
 
         try {
             const response = await openai.chat.completions.create({

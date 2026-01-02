@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const { runPipeline, getJobStatus } = require('../scripts/orchestrator');
 
@@ -228,6 +229,59 @@ app.post('/webhook/typeform', async (req, res) => {
         console.error('Typeform webhook error:', error);
         res.status(500).json({ error: error.message });
     }
+});
+
+// --- DIAGNOSTIC ENDPOINT ---
+app.get('/diagnose', async (req, res) => {
+    const report = {
+        env: {
+            TAVILY_API_KEY: process.env.TAVILY_API_KEY ? `Present (${process.env.TAVILY_API_KEY.length} chars)` : 'MISSING',
+            FIRECRAWL_API_KEY: process.env.FIRECRAWL_API_KEY ? `Present (${process.env.FIRECRAWL_API_KEY.length} chars)` : 'MISSING',
+            OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY ? `Present (${process.env.OPENROUTER_API_KEY.length} chars)` : 'MISSING',
+            VERCEL_API_TOKEN: process.env.VERCEL_API_TOKEN ? `Present (${process.env.VERCEL_API_TOKEN.length} chars)` : 'MISSING',
+            PORT: process.env.PORT || 'Not set',
+        },
+        tests: {}
+    };
+
+    try {
+        // Test Tavily
+        if (process.env.TAVILY_API_KEY) {
+            const tavilyResp = await axios.post("https://api.tavily.com/search", {
+                api_key: process.env.TAVILY_API_KEY,
+                query: "test",
+                max_results: 1
+            });
+            report.tests.tavily = { status: 'success', result: 'Connected' };
+        } else {
+            report.tests.tavily = { status: 'skipped', reason: 'No key' };
+        }
+    } catch (e) {
+        report.tests.tavily = { status: 'failed', error: e.message, data: e.response?.data };
+    }
+
+    try {
+        // Test Firecrawl
+        if (process.env.FIRECRAWL_API_KEY) {
+            const Firecrawl = require('@mendable/firecrawl-js').default;
+            const firecrawl = new Firecrawl({ apiKey: process.env.FIRECRAWL_API_KEY });
+
+            // Actual scrape test
+            const scrapeData = await firecrawl.scrape("https://example.com", { formats: ['markdown'] });
+
+            if (scrapeData && (scrapeData.markdown || scrapeData.data?.markdown)) {
+                report.tests.firecrawl = { status: 'success', result: 'Scrape successful' };
+            } else {
+                report.tests.firecrawl = { status: 'failed', result: 'Scrape returned empty data', response: scrapeData };
+            }
+        } else {
+            report.tests.firecrawl = { status: 'skipped', reason: 'No key' };
+        }
+    } catch (e) {
+        report.tests.firecrawl = { status: 'failed', error: e.message };
+    }
+
+    res.json(report);
 });
 
 // Start server

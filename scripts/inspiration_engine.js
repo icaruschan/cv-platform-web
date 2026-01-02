@@ -9,10 +9,17 @@ const path = require('path');
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "google/gemini-2.5-flash-preview-05-20";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "google/gemini-3-pro-preview";
 
-// Initialize Clients
-const firecrawl = new Firecrawl({ apiKey: FIRECRAWL_API_KEY });
+// Lazy initialization to prevent module-level crashes
+let firecrawlClient = null;
+function getFirecrawl() {
+    if (!firecrawlClient && FIRECRAWL_API_KEY) {
+        firecrawlClient = new Firecrawl({ apiKey: FIRECRAWL_API_KEY });
+    }
+    return firecrawlClient;
+}
+
 const openai = new OpenAI({
     baseURL: "https://openrouter.ai/api/v1",
     apiKey: OPENROUTER_API_KEY,
@@ -41,6 +48,72 @@ const PLATFORMS = [
     { name: 'Dribbble', site: 'dribbble.com', type: 'visual_only' },
     { name: 'Behance', site: 'behance.net', type: 'visual_only' },
 ];
+
+/**
+ * Step 0: Extract Search-Friendly Vibe
+ * Takes a long design direction and condenses it into a short, search-friendly phrase.
+ */
+async function extractSearchVibe(fullVibe) {
+    // If already short enough (under 50 chars), use as-is
+    if (fullVibe.length <= 50) {
+        console.log(`✅ Vibe already short enough: "${fullVibe}"`);
+        return fullVibe;
+    }
+
+    console.log(`🔄 Condensing long vibe (${fullVibe.length} chars) into search phrase...`);
+
+    // Fallback function - extract meaningful keywords from vibe
+    const getFallbackVibe = () => {
+        // Try to extract key design terms
+        const designTerms = ['minimalist', 'modern', 'playful', 'dark', 'light', 'neobrutalist',
+            'corporate', 'creative', 'elegant', 'bold', 'clean', 'tech', 'portfolio'];
+        const vibeWords = fullVibe.toLowerCase().split(/\s+/);
+        const matchedTerms = designTerms.filter(term => vibeWords.some(w => w.includes(term)));
+
+        if (matchedTerms.length >= 2) {
+            return matchedTerms.slice(0, 3).map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' ') + ' Portfolio';
+        }
+        // Default fallback: first 5 words
+        return fullVibe.split(' ').slice(0, 5).join(' ');
+    };
+
+    try {
+        const response = await openai.chat.completions.create({
+            model: GEMINI_MODEL,
+            messages: [
+                {
+                    role: "system",
+                    content: "You are a design curator. Extract the core visual style from the description into a SHORT search phrase (3-5 words max). Examples: 'Minimalist Dark Portfolio', 'Neobrutalist Tech Site', 'Clean Corporate Design'. Output ONLY the short phrase, nothing else."
+                },
+                {
+                    role: "user",
+                    content: fullVibe
+                }
+            ],
+            max_tokens: 30,
+            temperature: 0.3
+        });
+
+        const shortVibe = response.choices[0].message.content.trim().replace(/['"]/g, '');
+
+        // Validate the response - must be at least 3 chars and not empty
+        if (!shortVibe || shortVibe.length < 3) {
+            console.warn(`⚠️ LLM returned empty/invalid vibe, using fallback...`);
+            const fallback = getFallbackVibe();
+            console.log(`✅ Fallback vibe: "${fallback}"`);
+            return fallback;
+        }
+
+        console.log(`✅ Condensed vibe: "${shortVibe}"`);
+        return shortVibe;
+
+    } catch (error) {
+        console.warn(`⚠️ Failed to condense vibe: ${error.message}`);
+        const fallback = getFallbackVibe();
+        console.log(`⚠️ Using fallback: "${fallback}"`);
+        return fallback;
+    }
+}
 
 /**
  * Step 1: Search for Inspiration
@@ -116,7 +189,7 @@ async function resolveGalleryUrls(sources) {
                 // Gallery sites - need to extract real URL
                 console.log(`   🔍 ${source.platform}: Resolving...`);
 
-                const page = await firecrawl.scrape(source.url, {
+                const page = await getFirecrawl().scrape(source.url, {
                     formats: ['links']
                 });
 
@@ -156,14 +229,14 @@ async function resolveTemplateUrl(url, platform) {
             }
 
             // Fallback: scrape for preview link
-            const page = await firecrawl.scrape(url, { formats: ['links'] });
+            const page = await getFirecrawl().scrape(url, { formats: ['links'] });
             const previewLink = page.links?.find(link => link.includes('.framer.website'));
             return previewLink || null;
         }
 
         if (platform === 'Webflow') {
             // Webflow: Need to scrape for preview link
-            const page = await firecrawl.scrape(url, { formats: ['links'] });
+            const page = await getFirecrawl().scrape(url, { formats: ['links'] });
             const previewLink = page.links?.find(link =>
                 link.includes('.webflow.io') ||
                 link.includes('preview--')
@@ -222,7 +295,7 @@ async function extractHybridData(sources) {
         try {
             // Always try to get screenshot
             console.log(`   📸 ${source.platform}: Capturing screenshot...`);
-            const screenshotResult = await firecrawl.scrape(source.resolvedUrl, {
+            const screenshotResult = await getFirecrawl().scrape(source.resolvedUrl, {
                 formats: ['screenshot']
             });
             data.screenshot = screenshotResult.screenshot || null;
@@ -238,7 +311,7 @@ async function extractHybridData(sources) {
                         console.log(`   ⏳ ${source.platform}: Waiting for hydration (3s)...`);
                     }
 
-                    const brandingResult = await firecrawl.scrape(source.resolvedUrl, scrapeOptions);
+                    const brandingResult = await getFirecrawl().scrape(source.resolvedUrl, scrapeOptions);
                     data.branding = brandingResult.branding || null;
 
                     if (data.branding) {
@@ -650,58 +723,128 @@ function collectPersonality(sources) {
  * Main Execution Function
  */
 async function runInspirationEngine(userVibe) {
+    const outputDir = path.join(__dirname, '../website-guidelines');
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+    }
+    const outputPath = path.join(outputDir, '0.design-moodboard.md');
+
+    // Helper to create fallback moodboard
+    function createFallbackMoodboard(vibe, reason) {
+        console.warn(`⚠️ Using fallback moodboard: ${reason}`);
+        return `# Design Moodboard
+
+## Vibe Direction
+**Target Vibe:** ${vibe}
+
+## Color Palette (Suggested)
+| Role | Color | Notes |
+|------|-------|-------|
+| Primary Background | #0a0a0a | Deep dark for modern feel |
+| Secondary Background | #1a1a1a | Slightly lighter sections |
+| Primary Accent | #6366f1 | Vibrant indigo for highlights |
+| Secondary Accent | #8b5cf6 | Purple gradient complement |
+| Text Primary | #ffffff | High contrast on dark |
+| Text Secondary | #a3a3a3 | Muted text for descriptions |
+
+## Typography
+### Headings
+- **Font:** Inter or system-ui
+- **Weight:** 700 (Bold)
+- **Style:** Clean, modern, sans-serif
+
+### Body
+- **Font:** Inter or system-ui
+- **Weight:** 400 (Regular)
+- **Line Height:** 1.6
+
+## Visual Effects
+### Layout Patterns
+- Full-width hero section
+- Card-based project grid
+- Generous whitespace
+
+### Animations
+- Fade-in on scroll
+- Subtle hover effects
+- Smooth transitions (0.3s ease)
+
+### Signature Effects
+- Gradient overlays
+- Subtle shadows
+- Glass morphism accents
+
+## Overall Vibe
+${vibe}
+
+---
+*Note: This is a fallback moodboard. The inspiration engine could not gather live references due to: ${reason}*
+`;
+    }
+
     if (!userVibe) {
         console.error("❌ No Vibe provided.");
+        const moodboard = createFallbackMoodboard("Modern Professional Portfolio", "No vibe provided");
+        fs.writeFileSync(outputPath, moodboard);
         return;
     }
 
     console.log(`\n🚀 Starting HYBRID Inspiration Engine for: "${userVibe}"\n`);
     console.log(`${'='.repeat(60)}\n`);
 
-    // Step 1: Search across 8 platforms
-    const sources = await searchDesignInspiration(userVibe);
-    if (sources.length === 0) {
-        console.error("❌ No inspiration sources found.");
-        return;
+    try {
+        // Step 0: Extract short search phrase from full vibe
+        const searchVibe = await extractSearchVibe(userVibe);
+
+        // Step 1: Search across 8 platforms
+        const sources = await searchDesignInspiration(searchVibe);
+        if (sources.length === 0) {
+            console.warn("⚠️ No inspiration sources found. Using fallback.");
+            const moodboard = createFallbackMoodboard(userVibe, "No inspiration sources found from search");
+            fs.writeFileSync(outputPath, moodboard);
+            return;
+        }
+
+        // Step 2: Resolve gallery URLs to real sites
+        const resolvedSources = await resolveGalleryUrls(sources);
+
+        // Step 3: Extract hybrid data (branding + screenshots)
+        const extractedData = await extractHybridData(resolvedSources);
+        if (extractedData.length === 0) {
+            console.warn("⚠️ No data could be extracted. Using fallback.");
+            const moodboard = createFallbackMoodboard(userVibe, "Data extraction failed");
+            fs.writeFileSync(outputPath, moodboard);
+            return;
+        }
+
+        // Step 4: Analyze visual patterns with Gemini Vision
+        const visualAnalysis = await analyzeVisualPatterns(extractedData, userVibe);
+
+        // Step 5: Synthesize final moodboard
+        const moodboard = synthesizeMoodboard(extractedData, visualAnalysis, userVibe);
+
+        // Step 6: Save output
+        fs.writeFileSync(outputPath, moodboard);
+
+        console.log(`\n${'='.repeat(60)}`);
+        console.log(`🎉 Hybrid moodboard generated at: ${outputPath}`);
+        console.log(`${'='.repeat(60)}\n`);
+
+        // Summary stats
+        const brandingCount = extractedData.filter(d => d.branding).length;
+        const screenshotCount = extractedData.filter(d => d.screenshot).length;
+        console.log(`📊 Summary:`);
+        console.log(`   - Sources searched: ${sources.length}`);
+        console.log(`   - URLs resolved: ${resolvedSources.length}`);
+        console.log(`   - Branding extracted: ${brandingCount}`);
+        console.log(`   - Screenshots captured: ${screenshotCount}`);
+
+    } catch (error) {
+        console.error(`❌ Inspiration engine error: ${error.message}`);
+        console.warn("⚠️ Using fallback moodboard.");
+        const moodboard = createFallbackMoodboard(userVibe, error.message);
+        fs.writeFileSync(outputPath, moodboard);
     }
-
-    // Step 2: Resolve gallery URLs to real sites
-    const resolvedSources = await resolveGalleryUrls(sources);
-
-    // Step 3: Extract hybrid data (branding + screenshots)
-    const extractedData = await extractHybridData(resolvedSources);
-    if (extractedData.length === 0) {
-        console.error("❌ No data could be extracted.");
-        return;
-    }
-
-    // Step 4: Analyze visual patterns with Gemini Vision
-    const visualAnalysis = await analyzeVisualPatterns(extractedData, userVibe);
-
-    // Step 5: Synthesize final moodboard
-    const moodboard = synthesizeMoodboard(extractedData, visualAnalysis, userVibe);
-
-    // Step 6: Save output
-    const outputDir = path.join(__dirname, '../website-guidelines');
-    if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-    }
-
-    const outputPath = path.join(outputDir, '0.design-moodboard.md');
-    fs.writeFileSync(outputPath, moodboard);
-
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(`🎉 Hybrid moodboard generated at: ${outputPath}`);
-    console.log(`${'='.repeat(60)}\n`);
-
-    // Summary stats
-    const brandingCount = extractedData.filter(d => d.branding).length;
-    const screenshotCount = extractedData.filter(d => d.screenshot).length;
-    console.log(`📊 Summary:`);
-    console.log(`   - Sources searched: ${sources.length}`);
-    console.log(`   - URLs resolved: ${resolvedSources.length}`);
-    console.log(`   - Branding extracted: ${brandingCount}`);
-    console.log(`   - Screenshots captured: ${screenshotCount}`);
 }
 
 // CLI Execution

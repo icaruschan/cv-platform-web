@@ -3,6 +3,7 @@ const OpenAI = require('openai');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { parseBrief, getProfileImageUrl, getProjectImageUrl, getSocialLinks } = require('./brief_parser');
 
 // --- Configuration ---
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
@@ -23,6 +24,18 @@ function loadTechnicalConstraints() {
         return fs.readFileSync(constraintsPath, 'utf8');
     }
     console.warn('⚠️  TECHNICAL_CONSTRAINTS.md not found, proceeding without guardrails.');
+    return '';
+}
+
+/**
+ * Load style guide for consistent visual styling
+ */
+function loadStyleGuide() {
+    const styleGuidePath = path.join(GUIDELINES_DIR, 'STYLE_GUIDE.md');
+    if (fs.existsSync(styleGuidePath)) {
+        return fs.readFileSync(styleGuidePath, 'utf8');
+    }
+    console.warn('⚠️  STYLE_GUIDE.md not found, components may have inconsistent styling.');
     return '';
 }
 
@@ -112,7 +125,6 @@ async function createProjectScaffold() {
             "react": "^18.2.0",
             "react-dom": "^18.2.0",
             "framer-motion": "^10.16.0",
-            "@lenis/react": "^1.0.0",
             "lenis": "^1.0.0",
             "clsx": "^2.0.0",
             "tailwind-merge": "^2.0.0",
@@ -282,51 +294,112 @@ html {
 }
 
 /**
- * Generates a section component using Gemini
+ * Generates all website content in a SINGLE LLM call to ensure consistency
+ * @param {Object} briefData - Structured brief data
+ * @param {string} moodboard - Design moodboard
+ * @param {string} constraints - Technical constraints
+ * @param {string} styleGuide - Style guide
+ * @param {Array<string>} sectionFiles - List of section spec filenames
  */
-async function generateSectionComponent(sectionName, sectionSpec, moodboard, brief, constraints) {
-    console.log(`   🔧 Generating ${sectionName} component...`);
+async function generateFullSiteContent(briefData, moodboard, constraints, styleGuide, sectionFiles) {
+    console.log("   🔧 Generating FULL SITE in a single pass for consistency...");
 
-    // Build the enhanced system prompt with guardrails
-    const systemPrompt = `You are an expert React/Next.js developer specializing in premium portfolio websites.
+    // Get social links and image URLs
+    const socialLinks = getSocialLinks(briefData);
+    const profileImageUrl = getProfileImageUrl(briefData);
 
-Generate a TSX component for a "${sectionName}" section using:
+    // Format projects
+    const projectsJson = JSON.stringify(briefData.projects.map(p => ({
+        name: p.name,
+        role: p.role,
+        impact: p.impact,
+        imageUrl: getProjectImageUrl(p),
+        twitterHandle: p.twitterHandle
+    })), null, 2);
+
+    // Read all section specs
+    let allSectionSpecs = "";
+    const sectionNames = [];
+
+    for (const file of sectionFiles) {
+        const spec = fs.readFileSync(path.join(SECTIONS_DIR, file), 'utf8');
+        const name = file.replace('.md', '').replace(/^\d+\./, ''); // e.g. "hero"
+        sectionNames.push(name);
+        allSectionSpecs += `\n--- SPEC FOR SECTION: ${name.toUpperCase()} ---\n${spec}\n`;
+    }
+
+    // Build the Prompt
+    const systemPrompt = `You are an expert Next.js/React developer.
+You must generate a COMPLETE portfolio website with ${sectionNames.length} sections: ${sectionNames.join(', ')}.
+
+## ARCHITECTURE
 - Next.js 14 App Router
-- Tailwind CSS for styling  
-- Framer Motion for animations
-- shadcn/ui patterns (but write the styles inline, don't import shadcn components)
+- Tailwind CSS (using variables from globals.css)
+- Framer Motion (animations)
+- Lucide React (icons)
+- shadcn/ui patterns (inline styles, no external imports)
 
-## CRITICAL TECHNICAL CONSTRAINTS
+## CRITICAL: VISUAL CONSISTENCY RULES
+1. **ONE ACCENT COLOR**: Choose ONE accent color from the moodboard and use it EVERYWHERE.
+   - NEVER mix Blue in Hero and Orange in Projects.
+   - Use 'text-primary' or 'bg-primary' classes.
+2. **CONSISTENT BUTTONS**: All primary buttons must look identical (same radius, same hover effect).
+3. **CONSISTENT TYPOGRAPHY**: 
+   - Use 'font-heading' for ALL headings (h1-h6).
+   - Use 'font-body' for ALL body text.
+   - **NEVER use 'font-mono'** unless specifically displaying a code snippet. Do not use it for tags, badges, or labels.
+
+## CRITICAL: TECHNICAL CONSTRAINTS
 ${constraints}
 
-## ADDITIONAL RULES
-1. Use 'use client' directive at the top
-2. Export default function named appropriately (e.g., HeroSection)
-3. Use Tailwind classes that reference CSS variables (e.g., bg-background, text-foreground)
-4. Add Framer Motion animations (fade-in, slide-up on scroll)
-5. Make it responsive (mobile-first)
-6. Use semantic HTML with proper section id (e.g., id="${sectionName.toLowerCase()}")
-7. Include placeholder content that matches the brief
-8. DO NOT import any external components - write everything inline
-9. DO NOT use inline <style> tags - all fonts are already in globals.css
-10. ALL buttons MUST have working onClick handlers (e.g., scroll to section)
-11. Output ONLY the TSX code, no markdown, no explanation
+## DATA SOURCES (USE EXACTLY)
+- Name: ${briefData.name}
+- Title: ${briefData.title}
+- Experience: ${briefData.experience || 'Not provided'}
+- Tagline: ${briefData.tagline}
+- Summary: ${briefData.summary || 'Not provided'}
+- Profile Image: ${profileImageUrl}
+- Email: ${socialLinks.email || 'Not provided'}
+- Twitter: ${socialLinks.twitter || 'Not provided'}
+- LinkedIn: ${socialLinks.linkedin || 'Not provided'}
+- Discord: ${socialLinks.discord || 'Not provided'}
+- Projects: ${projectsJson}
 
-The component should look PREMIUM - use gradients, subtle glows, modern typography.`;
+## CRITICAL: DATA USAGE INSTRUCTIONS
+1. **Profile Image**: Use the provided Profile Image URL in an <Image> component for the About section.
+2. **Project Images**: Each project has an 'imageUrl' field. Use it as the src for project card thumbnails.
+3. **Social Links**: Render clickable icon buttons for Twitter, LinkedIn, and Discord using the URLs provided above. If a URL is 'Not provided', hide that button or disable it.
 
-    const userMessage = `## Section Spec
-${sectionSpec}
+## OUTPUT FORMAT
+Return the code for ALL sections in a single response.
+DO NOT generate 'globals.css' or 'layout.tsx'. I only need the section components.
+Separate each file with a special delimiter:
+### SECTION: [section_name] ###
+[Technically correct TSX code with 'use client']
 
-## Design Moodboard
-${moodboard}
+Example:
+### SECTION: hero ###
+'use client';
+export default function HeroSection() {...}
 
-## Client Brief
-${brief.substring(0, 500)}
+### SECTION: about ###
+'use client';
+export default function AboutSection() {...}
+`;
 
-Generate the TSX component for this section. Remember:
-- Add id="${sectionName.toLowerCase()}" to the section element
-- All buttons must scroll to their target or have real functionality
-- No inline <style> tags`;
+    const userMessage = `
+## DESIGN MOODBOARD
+${moodboard.substring(0, 2000)}
+
+## STYLE GUIDE (Use these tokens)
+${styleGuide ? styleGuide.substring(0, 4000) : 'Standard Tailwind tokens'}
+
+## SECTION SPECIFICATIONS
+${allSectionSpecs}
+
+Generate the code for ALL ${sectionNames.length} sections now.
+Ensure perfectly consistent design across them.
+`;
 
     try {
         const response = await openai.chat.completions.create({
@@ -334,60 +407,101 @@ Generate the TSX component for this section. Remember:
             messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userMessage }
-            ]
+            ],
+            temperature: 0.7, // Slightly creative but consistent
         });
 
-        let code = response.choices[0].message.content;
-
-        // Clean up the response (remove markdown code blocks if present)
-        code = code.replace(/```tsx?\n?/g, '').replace(/```$/g, '').trim();
-
-        // Validate the generated code
-        const issues = validateComponent(code, sectionName);
-        if (issues.length > 0) {
-            console.log(`   ⚠️  Validation issues for ${sectionName}:`);
-            issues.forEach(issue => console.log(`      ${issue}`));
-        }
-
-        return code;
+        const fullResponse = response.choices[0].message.content;
+        return parseAndSaveSections(fullResponse, sectionNames);
 
     } catch (error) {
-        console.error(`   ❌ Failed to generate ${sectionName}:`, error.message);
-        return null;
+        console.error("❌ Failed to generate full site:", error.message);
+        return [];
     }
+}
+
+/**
+ * Parses the monolithic LLM response and saves individual files
+ */
+function parseAndSaveSections(fullResponse, expectedSections) {
+    const generatedComponents = [];
+
+    // DEBUG: Log the first 500 chars to see what we got
+    console.log("   🔍 Raw Response Preview:\n" + fullResponse.substring(0, 500) + "...\n");
+
+    // Split by the delimiter "### SECTION: name ###"
+    // Regex matches "### SECTION: name ###" and captures "name"
+    // IMPROVED: Case-insensitive flag 'i', flexible spacing, AND ALLOW DOTS matches like 'hero.tsx'
+    const regex = /###\s*SECTION:\s*([a-zA-Z0-9._-]+)\s*###/gi;
+
+    let match;
+
+    // We need to find all matches to slice the string between them
+    const matches = [];
+    while ((match = regex.exec(fullResponse)) !== null) {
+        matches.push({
+            name: match[1].toLowerCase(),
+            index: match.index,
+            endOfTag: match.index + match[0].length
+        });
+    }
+
+    console.log(`   📊 Found ${matches.length} sections: ${matches.map(m => m.name).join(', ')}`);
+
+    // Process matches
+    for (let i = 0; i < matches.length; i++) {
+        const section = matches[i];
+        const nextSection = matches[i + 1];
+
+        // Content is from end of this tag to start of next tag (or end of string)
+        const endOfContent = nextSection ? nextSection.index : fullResponse.length;
+
+        let code = fullResponse.slice(section.endOfTag, endOfContent).trim();
+
+        // Clean markdown code blocks if present
+        code = code.replace(/^```tsx?\n?/, '').replace(/```$/, '').trim();
+
+        // Validate component
+        const sectionName = section.name;
+        const issues = validateComponent(code, sectionName);
+        if (issues.length > 0) {
+            console.warn(`   ⚠️ Issues in ${sectionName}:`, issues);
+        }
+
+        // Save file
+        const componentName = sectionName.charAt(0).toUpperCase() + sectionName.slice(1) + 'Section';
+        const filePath = path.join(OUTPUT_DIR, 'components/sections', `${componentName}.tsx`);
+
+        // Add ID if missing (simple patch)
+        if (!code.includes(`id="${sectionName}"`)) {
+            code = code.replace(/<section/, `<section id="${sectionName}"`);
+        }
+
+        fs.writeFileSync(filePath, code);
+        generatedComponents.push(componentName);
+        console.log(`   ✅ Parsed & Saved: ${componentName}.tsx`);
+    }
+
+    return generatedComponents;
 }
 
 /**
  * Generates all section components
  */
-async function generateAllSections() {
-    console.log("\n📝 Generating section components...");
+async function generateAllSections(briefData) {
+    console.log("\n📝 Generating ALL site sections (Single-Pass Mode)...");
 
     const moodboard = fs.readFileSync(path.join(GUIDELINES_DIR, '0.design-moodboard.md'), 'utf8');
-    const brief = fs.readFileSync(path.join(GUIDELINES_DIR, 'product-brief.md'), 'utf8');
-
-    // Load technical constraints for guardrails
     const constraints = loadTechnicalConstraints();
-    console.log(constraints ? '🛡️  Technical constraints loaded.' : '⚠️  Running without guardrails.');
+    const styleGuide = loadStyleGuide();
 
     // Read all section spec files
     const sectionFiles = fs.readdirSync(SECTIONS_DIR).filter(f => f.endsWith('.md'));
-    const generatedSections = [];
 
-    for (const file of sectionFiles) {
-        const sectionSpec = fs.readFileSync(path.join(SECTIONS_DIR, file), 'utf8');
-        const sectionName = file.replace('.md', '').replace(/^\d+\./, ''); // e.g., "1.hero.md" → "hero"
-
-        const componentCode = await generateSectionComponent(sectionName, sectionSpec, moodboard, brief, constraints);
-
-        if (componentCode) {
-            const componentName = sectionName.charAt(0).toUpperCase() + sectionName.slice(1) + 'Section';
-            const filePath = path.join(OUTPUT_DIR, 'components/sections', `${componentName}.tsx`);
-            fs.writeFileSync(filePath, componentCode);
-            generatedSections.push(componentName);
-            console.log(`   ✅ ${componentName}.tsx created.`);
-        }
-    }
+    // Call the new monolithic generator
+    const generatedSections = await generateFullSiteContent(
+        briefData, moodboard, constraints, styleGuide, sectionFiles
+    );
 
     return generatedSections;
 }
@@ -399,7 +513,7 @@ function createMainPage(sections) {
     console.log("\n📄 Creating page.tsx...");
 
     const imports = sections.map(s => `import ${s} from '@/components/sections/${s}';`).join('\n');
-    const components = sections.map(s => `        <${s} />`).join('\n');
+    const components = sections.map(s => `            <${s} />`).join('\n');
 
     const pageCode = `${imports}
 
@@ -417,16 +531,103 @@ ${components}
 }
 
 /**
- * Creates the layout.tsx
+ * Parses fonts from the style guide and returns Next.js font configurations
+ */
+function parseFontsFromStyleGuide() {
+    const styleGuide = loadStyleGuide();
+
+    // Default fallback
+    const defaults = {
+        heading: { name: 'Inter', variable: '--font-heading', importName: 'Inter' },
+        body: { name: 'Inter', variable: '--font-body', importName: 'Inter' },
+        mono: { name: 'JetBrains Mono', variable: '--font-mono', importName: 'JetBrains_Mono' }
+    };
+
+    if (!styleGuide) return defaults;
+
+    // Regex to extract font families: e.g. --font-heading: 'Playfair Display', serif;
+    const extractFont = (varName) => {
+        const regex = new RegExp(`${varName}:\\s*['"]?([^,'";]+)['"]?`);
+        const match = styleGuide.match(regex);
+        return match ? match[1].trim() : null;
+    };
+
+    const headingFont = extractFont('--font-heading');
+    const bodyFont = extractFont('--font-body');
+
+    return {
+        heading: getFontConfig(headingFont, '--font-heading') || defaults.heading,
+        body: getFontConfig(bodyFont, '--font-body') || defaults.body,
+        mono: defaults.mono // Keep mono default for code snippets
+    };
+}
+
+/**
+ * Maps a font name to its Next.js configuration
+ */
+function getFontConfig(fontName, variableName) {
+    if (!fontName) return null;
+
+    // Map common Google Fonts to Next.js export names
+    // This handles spaces and special cases
+    const normalize = (name) => name.replace(/\s+/g, '_');
+
+    // List of supported Google Fonts in next/font/google
+    // We can't support all, but we hit the top popular ones from our inspiration engine
+    const supportedFonts = [
+        'Inter', 'Roboto', 'Open_Sans', 'Lato', 'Montserrat', 'Oswald', 'Raleway',
+        'Nunito', 'Merriweather', 'Playfair_Display', 'Rubik', 'Poppins',
+        'Plus_Jakarta_Sans', 'Archivo_Narrow', 'Space_Grotesk', 'Syne', 'Outfit',
+        'DM_Sans', 'Manrope', 'Lora', 'Work_Sans', 'Fira_Code', 'JetBrains_Mono'
+    ];
+
+    const normalized = normalize(fontName);
+    const found = supportedFonts.find(f => f.toLowerCase() === normalized.toLowerCase());
+
+    if (found) {
+        return {
+            name: fontName,
+            variable: variableName,
+            importName: found
+        };
+    }
+
+    return null;
+}
+
+/**
+ * Creates the layout.tsx with DYNAMIC fonts from style guide
  */
 function createLayout() {
     console.log("📄 Creating layout.tsx...");
 
+    const fonts = parseFontsFromStyleGuide();
+    console.log(`   🎨 Fonts detected: Heading=${fonts.heading.name}, Body=${fonts.body.name}`);
+
+    // Deduplicate imports
+    const imports = new Set([fonts.heading.importName, fonts.body.importName, fonts.mono.importName]);
+
     const layoutCode = `import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { ${Array.from(imports).join(', ')} } from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-body' });
+const headingFont = ${fonts.heading.importName}({ 
+    subsets: ['latin'], 
+    variable: '${fonts.heading.variable}',
+    display: 'swap',
+});
+
+const bodyFont = ${fonts.body.importName}({ 
+    subsets: ['latin'], 
+    variable: '${fonts.body.variable}',
+    display: 'swap',
+});
+
+const monoFont = ${fonts.mono.importName}({ 
+    subsets: ['latin'], 
+    variable: '${fonts.mono.variable}',
+    display: 'swap',
+});
 
 export const metadata: Metadata = {
     title: 'Portfolio',
@@ -439,8 +640,8 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="en" className="dark">
-            <body className={inter.variable}>
+        <html lang="en" className="dark scroll-smooth">
+            <body className={\`\${headingFont.variable} \${bodyFont.variable} \${monoFont.variable} font-body antialiased bg-background text-foreground\`}>
                 {children}
             </body>
         </html>
@@ -458,6 +659,12 @@ export default function RootLayout({
 async function generateSite() {
     console.log("🚀 Starting Site Generation...\n");
 
+    // Step 0: Parse brief data early
+    const briefPath = path.join(GUIDELINES_DIR, 'product-brief.md');
+    console.log("📋 Parsing product brief...");
+    const briefData = parseBrief(briefPath);
+    console.log(`   ✅ Client: ${briefData.name} - ${briefData.title}`);
+
     // Step 1: Create scaffold
     await createProjectScaffold();
 
@@ -467,10 +674,10 @@ async function generateSite() {
     // Step 3: Create layout
     createLayout();
 
-    // Step 4: Generate all section components
-    const sections = await generateAllSections();
+    // Step 4: Generate all section components (pass briefData)
+    const sections = await generateAllSections(briefData);
 
-    // Step 5: Create main page
+    // Step 5: Create main page (no navbar)
     createMainPage(sections);
 
     console.log("\n🎉 Site generation complete!");
