@@ -5,7 +5,8 @@ const path = require('path');
 
 // --- Configuration ---
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "google/gemini-3-pro-preview";
+// Use Flash model for specs (cheaper, faster for documentation)
+const GEMINI_MODEL = process.env.GEMINI_MODEL_FAST || "google/gemini-3-flash-preview";
 
 // Initialize OpenAI client for OpenRouter
 const openai = new OpenAI({

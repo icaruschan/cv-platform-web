@@ -26,7 +26,8 @@ const openai = new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY
 });
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'google/gemini-2.0-flash-001';
+// Use Flash model for brief generation (cheaper for text-only tasks)
+const GEMINI_MODEL = process.env.GEMINI_MODEL_FAST || 'google/gemini-3-flash-preview';
 
 // Job status tracking
 const jobStatuses = new Map();

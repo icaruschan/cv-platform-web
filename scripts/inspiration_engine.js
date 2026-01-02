@@ -9,7 +9,8 @@ const path = require('path');
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "google/gemini-3-pro-preview";
+// Use Flash model for branding extraction (faster, cheaper)
+const GEMINI_MODEL_FAST = process.env.GEMINI_MODEL_FAST || "google/gemini-3-flash-preview";
 
 // Lazy initialization to prevent module-level crashes
 let firecrawlClient = null;
@@ -79,7 +80,7 @@ async function extractSearchVibe(fullVibe) {
 
     try {
         const response = await openai.chat.completions.create({
-            model: GEMINI_MODEL,
+            model: GEMINI_MODEL_FAST,
             messages: [
                 {
                     role: "system",
@@ -391,7 +392,7 @@ async function analyzeVisualPatterns(sources, vibe) {
 
     try {
         const response = await openai.chat.completions.create({
-            model: GEMINI_MODEL,
+            model: GEMINI_MODEL_FAST,
             messages: [{ role: "user", content: content }]
         });
 
