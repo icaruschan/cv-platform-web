@@ -12,6 +12,7 @@
 require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
+const { execSync } = require('child_process');
 const OpenAI = require('openai');
 const { runInspirationEngine } = require('./inspiration_engine');
 const { generateStyleGuide, generateProjectRequirements, generateSectionSpecs } = require('./spec_generator');
