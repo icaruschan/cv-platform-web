@@ -43,41 +43,58 @@ async function generateStyleGuide() {
     const moodboard = fs.readFileSync(moodboardPath, 'utf8');
     const brief = fs.readFileSync(briefPath, 'utf8');
 
-    // The Prompt (Based on the "Follow Along Guide" Prompt #1)
-    const systemPrompt = `You are an expert UI/UX designer and frontend developer. Your task is to create a comprehensive STYLE_GUIDE.md that will serve as the "Single Source of Truth" for building a portfolio website.
+    // The Prompt (Enhanced with expert persona)
+    const systemPrompt = `You are a world-class Design Systems Engineer with over 15 years of experience at top agencies like Pentagram, IDEO, and Google. You are renowned for creating aesthetically stunning, harmonious design systems that translate beautifully into award-winning websites.
+
+Your task is to create a comprehensive STYLE_GUIDE.md that will serve as the "Single Source of Truth" for building a visually breathtaking portfolio website.
 
 You will be given a Design Moodboard (containing color palette, typography, UI patterns) and a Product Brief (containing client info and vibe keywords).
 
-Your output MUST be a complete, usable style guide in Markdown format that includes:
+## YOUR DESIGN PHILOSOPHY:
+- Every color choice should evoke emotion and reinforce brand identity
+- Typography must create visual hierarchy that guides the eye naturally
+- Spacing should breathe — generous whitespace is a feature, not a bug
+- Animations should feel organic and purposeful, never gimmicky
 
-1.  **Design Philosophy:** A 2-3 sentence summary of the overall aesthetic.
+## OUTPUT REQUIREMENTS:
+Your output MUST be a complete, production-ready style guide in Markdown format:
 
-2.  **Color Palette:** Define CSS variables for:
-    - \`--color-primary\`
+1. **Design Philosophy:** A compelling 2-3 sentence vision statement capturing the aesthetic soul of this project.
+
+2. **Color Palette:** Define CSS variables with HSL values for flexibility:
+    - \`--color-primary\` (the hero accent color)
     - \`--color-secondary\`
-    - \`--color-background\`
-    - \`--color-accent\`
-    - \`--color-text-primary\`
-    - \`--color-text-secondary\`
+    - \`--color-background\` (main background)
+    - \`--color-foreground\` (main text)
+    - \`--color-muted\` (subtle backgrounds)
+    - \`--color-muted-foreground\` (subtle text)
+    - \`--color-accent\` (highlights)
     - \`--color-border\`
+    - \`--color-card\` (card backgrounds)
 
-3.  **Typography:** Define CSS variables for:
-    - \`--font-heading\` (Google Font name or family stack)
-    - \`--font-body\`
-    - \`--font-size-h1\` through \`--font-size-body\`
-    - \`--font-weight-heading\`
-    - \`--font-weight-body\`
+3. **Typography:** Define with Google Font names:
+    - \`--font-heading\` (display/heading font)
+    - \`--font-body\` (readable body font)
+    - Font sizes using clamp() for fluid typography:
+      - \`--font-size-hero\`: clamp(2.5rem, 5vw, 4.5rem)
+      - \`--font-size-h1\` through \`--font-size-body\`
+    - Font weights for heading and body
 
-4.  **Spacing & Layout:**
-    - \`--spacing-xs\` through \`--spacing-xl\`
-    - \`--border-radius-sm\`, \`--border-radius-md\`, \`--border-radius-lg\`
-    - \`--container-max-width\`
+4. **Spacing & Layout:**
+    - 8px grid system: --space-1 (0.25rem) through --space-20 (5rem)
+    - Border radius scale: sm, md, lg, full
+    - Container max-width
+    - Section padding defaults
 
-5.  **Component Styles:** For the key UI patterns identified (e.g., "Glassmorphism Card", "Bento Grid"), provide a brief CSS snippet or description of how to implement them.
+5. **Animation Guidelines:**
+    - Transition timing functions (ease-out for enters, ease-in for exits)
+    - Default durations: fast (150ms), base (300ms), slow (500ms)
+    - Scroll reveal patterns (fade-up, slide-in)
+    - Hover state philosophy
 
-6.  **Animation Guidelines:** Describe the animation philosophy (e.g., "subtle", "snappy") and provide CSS transition defaults.
+6. **Component Patterns:** Brief descriptions of key UI patterns to use (e.g., glassmorphism cards, gradient borders).
 
-Output ONLY the Markdown content for the STYLE_GUIDE.md file. Do not include any other text or explanation.`;
+Output ONLY the Markdown content. Make it beautiful — this document itself should reflect the quality of the design system.`;
 
     const userMessage = `## Design Moodboard
 
@@ -265,32 +282,50 @@ async function generateSectionSpecs() {
         const section = sections[i];
         console.log(`   - Generating ${section.name}...`);
 
-        const systemPrompt = `You are a UI/UX Designer creating section specifications for a portfolio website.
+        const systemPrompt = `You are a world-class UI/UX Architect with 15+ years of experience designing award-winning websites for clients like Apple, Stripe, and Linear. Your specifications are so precise that developers can build pixel-perfect implementations without additional clarification.
 
-Create a detailed spec for the "${section.name.toUpperCase()}" section.
+Create a production-ready specification for the "${section.name.toUpperCase()}" section.
 
-OUTPUT FORMAT:
+## YOUR STANDARDS:
+- Mobile-first design (320px → 1280px)
+- Every element must have a purpose — no decorative noise
+- Animations should guide attention, not distract
+- Accessibility is non-negotiable (WCAG 2.1 AA minimum)
+
+## OUTPUT FORMAT:
 # ${i + 1}. ${section.name.charAt(0).toUpperCase() + section.name.slice(1)} Section
 
 ## Purpose
 ${section.description}
 
-## Layout
-[Describe the layout: full-width, centered container, grid, etc.]
+## Layout Architecture
+- Container: [max-width, padding, background]
+- Grid structure: [columns for mobile/tablet/desktop]
+- Vertical rhythm: [spacing between elements]
 
-## Components Needed
-- [List specific UI components from shadcn/21st.dev]
+## Component Breakdown
+- [Component name with specific props/variants]
+- [Include shadcn/ui pattern references where applicable]
 
-## Content Elements
-- [List all text elements, images, buttons]
+## Content Mapping
+- [Heading] → uses: name, title, or tagline from brief
+- [Body text] → uses: summary or description from brief
+- [Images] → uses: profile image or project images from brief
 
-## Animations
-- [Scroll reveal, hover effects, etc.]
+## Animation Choreography (Framer Motion)
+- Entry animation: [type, duration, delay, stagger]
+- Scroll-triggered: [threshold, animation]
+- Hover/interaction: [scale, color, shadow changes]
+
+## Accessibility Checklist
+- Focus states for interactive elements
+- Semantic HTML structure
+- Color contrast requirements
 
 ## Design Notes
-- [Specific instructions tied to the moodboard]
+- [Specific visual treatments tied to moodboard colors/patterns]
 
-Keep it under 40 lines. Be specific but concise.`;
+Keep it under 50 lines. Be specific, actionable, and brilliant.`;
 
         const userMessage = `Moodboard:\n${moodboard}\n\nBrief:\n${brief}`;
 
