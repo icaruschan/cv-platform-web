@@ -28,7 +28,7 @@ This document is injected into every AI code generation prompt to prevent common
 | ❌ NEVER | ✅ ALWAYS |
 |----------|-----------|
 | Use a component/icon without importing it | Every component/icon used in JSX MUST have a matching import |
-| Assume Lucide icons are auto-imported | Explicitly import each icon: `import { ArrowUpRight, Mail } from 'lucide-react';` |
+| Assume Phosphor icons are auto-imported | Explicitly import each icon: `import { ArrowUpRight, Envelope } from '@phosphor-icons/react';` |
 
 ---
 

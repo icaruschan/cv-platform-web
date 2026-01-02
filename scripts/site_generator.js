@@ -129,7 +129,7 @@ async function createProjectScaffold() {
             "clsx": "^2.0.0",
             "tailwind-merge": "^2.0.0",
             "class-variance-authority": "^0.7.0",
-            "lucide-react": "^0.294.0"
+            "@phosphor-icons/react": "^2.0.15"
         },
         devDependencies: {
             "@types/node": "^20.0.0",
@@ -337,7 +337,7 @@ You must generate a COMPLETE portfolio website with ${sectionNames.length} secti
 - Next.js 14 App Router
 - Tailwind CSS (using variables from globals.css)
 - Framer Motion (for all animations)
-- Lucide React (icons)
+- Phosphor Icons (icons - use Regular weight by default, Bold for emphasis)
 - shadcn/ui patterns (inline, no external imports)
 
 ## VISUAL CONSISTENCY RULES (NON-NEGOTIABLE)
