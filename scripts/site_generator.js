@@ -382,8 +382,13 @@ ${constraints}
 ## DATA BINDING INSTRUCTIONS
 1. **Profile Image**: Use the provided URL in an <Image> component (About section).
 2. **Project Images**: Each project has 'imageUrl' — use it for card thumbnails.
-3. **Social Links**: Render icon buttons only if URL is not 'Not provided'. Hide missing ones.
-4. **Experience**: Display as "X+ Years" badge if provided.
+3. **Project Links (CRITICAL)**: Each project has a 'link' field (Twitter handle like '@persona' or URL).
+   - If it starts with '@', convert to Twitter URL: 'https://x.com/[handle]'
+   - If it's a URL (starts with 'http'), use it directly
+   - Make the ENTIRE project card clickable using <a> with target="_blank"
+   - Add hover effects to indicate clickability
+4. **Social Links**: Render icon buttons only if URL is not 'Not provided'. Hide missing ones.
+5. **Experience**: Display as "X+ Years" badge if provided.
 
 ## OUTPUT FORMAT
 Return code for ALL sections in a single response.
