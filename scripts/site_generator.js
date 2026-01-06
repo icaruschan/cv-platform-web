@@ -40,6 +40,18 @@ function loadStyleGuide() {
 }
 
 /**
+ * Load Motion System rulebook
+ */
+function loadMotionSystem() {
+    const motionPath = path.join(PROMPTS_DIR, 'MOTION_SYSTEM.md');
+    if (fs.existsSync(motionPath)) {
+        return fs.readFileSync(motionPath, 'utf8');
+    }
+    console.warn('⚠️  MOTION_SYSTEM.md not found, reverting to default fades.');
+    return '';
+}
+
+/**
  * Validates generated component code for common issues
  */
 function validateComponent(code, sectionName) {
@@ -356,12 +368,14 @@ You must generate a COMPLETE portfolio website with ${sectionNames.length} secti
 - NEVER use third person ("Fortune is", "He has", "She works")
 - If the provided summary is in third person, CONVERT it to first person
 
-## ANIMATION PHILOSOPHY
-- Entry animations: Subtle fade + slight translateY (0.4-0.6s, ease-out)
-- Stagger children with 0.1s delays
-- Hover effects: Scale 1.02-1.05, subtle shadow lift
-- Scroll-triggered reveals using viewport intersection
-- No jarring or flashy transitions
+## ANIMATION & PHYSICS ENGINE (CRITICAL)
+${loadMotionSystem()}
+
+## INSTRUCTION:
+1. Check the STYLE GUIDE for the \`MOODBOARD_CONFIG\` section to find the "Motion Profile" (STUDIO or TECH).
+2. If no profile is found, default to STUDIO.
+3. You MUST apply the corresponding physics (stiffness, damping) from the Motion System to ALL <motion.div> transitions.
+4. DO NOT use generic \`ease -in -out\` or \`duration\` unless specifically asked. Use SPRING PHYSICS.
 
 ## TECHNICAL CONSTRAINTS
 ${constraints}

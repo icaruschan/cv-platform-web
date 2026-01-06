@@ -1,0 +1,370 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "formId": "HbPNsprk"
+      },
+      "id": "420c6cd6-7a66-4b0d-a35d-264ab4028350",
+      "name": "Typeform Trigger",
+      "type": "n8n-nodes-base.typeformTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1232,
+        896
+      ],
+      "webhookId": "cv-generator-typeform",
+      "credentials": {
+        "typeformApi": {
+          "id": "GaCUkhXuhS4LmWci",
+          "name": "Typeform account"
+        }
+      },
+      "notes": "Receives form submissions from your CV Builder Form. Simplify Answers: ON, Only Answers: ON"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "name",
+              "name": "fullName",
+              "value": "={{ $json['What is your Full Name?'] || 'Unknown' }}",
+              "type": "string"
+            },
+            {
+              "id": "role",
+              "name": "role",
+              "value": "={{ $json['What is your professional role/title? (e.g. Business Developer)'] || 'Professional' }}",
+              "type": "string"
+            },
+            {
+              "id": "experience",
+              "name": "experience",
+              "value": "={{ $json['How many years of experience do you have?'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "tagline",
+              "name": "tagline",
+              "value": "={{ $json['What is your short professional tagline? (e.g. I ghostwrite for web3 founders and creators)'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "about",
+              "name": "about",
+              "value": "={{ $json['Tell me about yourself. \\n\\nWrite a professional bio covering your background and expertise.'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "vibe",
+              "name": "vibe",
+              "value": "={{ $json['Describe the visual style you want for your portofolio site (e.g Modern, minimal, professional, etc)\\n\\nBe as descriptive as possible'] || 'Modern Professional' }}",
+              "type": "string"
+            },
+            {
+              "id": "socials",
+              "name": "socialLinks",
+              "value": "={{ $json['List your key social media links (LinkedIn, Discord etc).'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "xProfile",
+              "name": "xProfile",
+              "value": "={{ $json['What is your X profile link'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "email",
+              "name": "email",
+              "value": "={{ $json[\"What's your email address?\"] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "projectCount",
+              "name": "projectCount",
+              "value": "={{ $json['How many projects/clients have you worked for'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "projects",
+              "name": "projects",
+              "value": "={{ $json['What are the top projects/clients and your specific role (e.g Monad - Community manager)'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "projectLinks",
+              "name": "projectLinks",
+              "value": "={{ $json['List the Project Links/Handles (X, Website, etc)\\n\\n(E.g Monad - @monad)'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "projectImpact",
+              "name": "projectImpact",
+              "value": "={{ $json['Describe your specific contribution and impact on this projects (e.g Monad - I was able to 10x community engagement.....)'] || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "testimonials",
+              "name": "testimonials",
+              "value": "={{ $json['Do you have any client testimonials/reviews (optional)'] || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f0afc5d1-dfe3-4d63-9e2f-cdb7075dbcac",
+      "name": "Extract Form Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -1040,
+        896
+      ],
+      "notes": "Extracts each Typeform answer into named fields using simplified question keys"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "brief",
+              "name": "briefContent",
+              "value": "={{ $json.output || $json.text || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "name",
+              "name": "name",
+              "value": "={{ $('Extract Form Fields').item.json.fullName }}",
+              "type": "string"
+            },
+            {
+              "id": "vibe",
+              "name": "vibe",
+              "value": "={{ $('Extract Form Fields').item.json.vibe }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "69e50541-1755-4374-9970-98251ba6a621",
+      "name": "Prepare API Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -576,
+        896
+      ],
+      "notes": "Combines AI-generated brief with key fields for API"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://cv-platform-web.vercel.app/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{ $json.name }}\",\n  \"vibe\": \"{{ $json.vibe }}\",\n  \"briefContent\": {{ JSON.stringify($json.briefContent) }}\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "7600ab7e-43c1-46a6-9ec9-bd687fbf17d3",
+      "name": "Send to CV Generator API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -384,
+        896
+      ],
+      "notes": "Sends the structured data and AI-generated brief to your API"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.jobId !== undefined }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "e9edc8a9-7014-4f24-99c6-fab2585d947a",
+      "name": "Check Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        1056
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "55100d0a-4637-44da-935c-437dec43fd25",
+      "name": "Success",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        864
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c8859064-325f-4015-a7f7-bfa44d0dbcf4",
+      "name": "Error",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        1216
+      ]
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-3-flash-preview",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -864,
+        1072
+      ],
+      "id": "23cff6ad-94cd-4866-baaa-97e3012a1d71",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "cTqgKDf9WHwcBbkT",
+          "name": "OpenRouter account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a professional portfolio content strategist. Your job is to transform raw form responses into a polished, comprehensive Product Brief for a portfolio website.\n\n## YOUR TASK\nCreate a complete Project Brief in markdown format. Output ONLY the markdown, no explanations.\n\n---\n\n## RAW USER DATA TO TRANSFORM:\n\n- **Full Name:** {{ $json.fullName }}\n- **Role/Title:** {{ $json.role }}\n- **Years of Experience:** {{ $json.experience }}\n- **Tagline:** {{ $json.tagline }}\n- **Professional Bio:** {{ $json.about }}\n- **Visual Style Preference:** {{ $json.vibe }}\n- **X/Twitter Profile:** {{ $json.xProfile }}\n- **Social Media Links:** {{ $json.socialLinks }}\n- **Email Address:** {{ $json.email }}\n- **Number of Projects:** {{ $json.projectCount }}\n- **Projects/Clients and Roles:** {{ $json.projects }}\n- **Project Links/Handles:** {{ $json.projectLinks }}\n- **Project Impact/Contributions:** {{ $json.projectImpact }}\n- **Testimonials:** {{ $json.testimonials }}\n\n---\n\n## OUTPUT STRUCTURE\n\n# Product Brief\n\n## Client Overview\n- **Name:** [Full name]\n- **Title:** [Professional role]\n- **Experience:** [X] years\n- **Tagline:** [Their tagline, or create one if missing based on their role]\n\n## Professional Summary\n[A polished 2-3 paragraph bio. Use their input but improve grammar, expand if too short, and make it compelling. Write in third person.]\n\n## Design Direction\n- **Visual Style:** [Their vibe preference]\n- **Interpretation:** [1-2 sentences explaining what this means for web design - colors, mood, layout style]\n- **Search Vibe:** [3-5 word summary for design inspiration search, e.g., \"Modern Neobrutalist Portfolio\", \"Minimalist Dark Tech\", \"Playful Creative Agency\"]\n\n## Projects Portfolio\n\n### [Project Name 1]\n- **Role:** [Their role]\n- **Link:** [Website or social handle]\n- **Impact:** [Their contribution, polished]\n\n### [Project Name 2]\n...\n\n## Contact Information\n- **Email:** [email]\n- **X/Twitter:** [X profile link]\n- **LinkedIn:** [if provided]\n- **Discord:** [if provided]\n\n## Testimonials\n[If provided, format each testimonial with quotes and attribution. If none provided, omit this entire section.]\n\n---\n\n## RULES\n1. Be professional but personable\n2. Parse messy comma-separated project lists into structured entries\n3. Match project names to their corresponding links and impacts\n4. Fix grammar and spelling errors while keeping authentic voice\n5. If tagline is missing, create a compelling one based on role and projects\n6. Expand short bios into professional 2-3 paragraph summaries\n7. If information is missing, make reasonable inferences (but don't invent projects)\n8. Omit sections that have no data (like Testimonials if empty)\n9. Generate a \"Search Vibe\" that condenses the visual style into 3-5 searchable keywords (e.g., \"Minimalist Dark Portfolio\", \"Playful Neobrutalist Tech\", \"Clean Corporate Design\")",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -864,
+        896
+      ],
+      "id": "e0df3860-e715-49bd-851f-01bd979f4a12",
+      "name": "Project Brief"
+    }
+  ],
+  "connections": {
+    "Typeform Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Form Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Form Fields": {
+      "main": [
+        [
+          {
+            "node": "Project Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare API Payload": {
+      "main": [
+        [
+          {
+            "node": "Send to CV Generator API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to CV Generator API": {
+      "main": [
+        [
+          {
+            "node": "Check Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Success": {
+      "main": [
+        [
+          {
+            "node": "Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Project Brief",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Project Brief": {
+      "main": [
+        [
+          {
+            "node": "Prepare API Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Typeform Trigger": [
+      {
+        "What is your Full Name?": "Fortune",
+        "What is your professional role/title? (e.g. Business Developer)": "Outreach Specialist",
+        "How many years of experience do you have?": 3,
+        "What is your short professional tagline? (e.g. I ghostwrite for web3 founders and creators)": "I connect brands and projects together leading to sustainable partnerships",
+        "Tell me about yourself. \n\nWrite a professional bio covering your background and expertise.": "I specialize in building strategic partnerships for founders and creators by leveraging my background in ghostwriting and digital brand building. I have a proven track record of navigating niche communities and utilizing AI-driven workflows to scale personalized communication and secure high-value collaborations",
+        "Describe the visual style you want for your portofolio site (e.g Modern, minimal, professional, etc)\n\nBe as descriptive as possible": "I want a modern yet professional yet that is aesthically pleasing with amazing animations and effects",
+        "List your key social media links (LinkedIn, Discord etc).": "Discord - https://discord.com/dreyscorner \nLinkedIn - https://www.linkedin.com/in/fortuneosasere/",
+        "What is your X profile link": "https://x.com/dreyshq",
+        "What's your email address?": "dreycole53@gmail.com",
+        "How many projects/clients have you worked for": 3,
+        "What are the top projects/clients and your specific role (e.g Monad - Community manager)": "Persona - Outreach and Lead Gen \nPukecast - Outreach, research and Lead gen \nHub.xyz - Lead gen and Outreach",
+        "List the Project Links/Handles (X, Website, etc)\n\n(E.g Monad - @monad)": "Persona - @persona_journey\nPukecast - @pukecast \nHub.xyz - @hubxyz",
+        "Describe your specific contribution and impact on this projects (e.g Monad - I was able to 10x community engagement.....)": "Persona - Closed over 5000 new partnership in my first year working with them resulting to major snowball effect in brand endorsements \n\nPukecast - Got over 10000 leads and profitable meetings done as well as a 10x sales of our services \n\nHub.xyz - Closed deals with major AI brands like Openai, Google, claude in my first month with them"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3930c4e1ed859e6ca254009233a4e11aa3f2ba20182e144ef79114fc7d845919"
+  }
+}

@@ -140,7 +140,14 @@ const { scrollYProgress } = useScroll();
 - Page load: Fade in content (0.3-0.5s)
 - Scroll reveal: Slide up + fade (0.5-0.8s)
 - Hover: Immediate response (0.15-0.3s)
+- Scroll reveal: Slide up + fade (0.5-0.8s)
+- Hover: Immediate response (0.15-0.3s)
 - Click: Tactile feedback (scale 0.95 → 1)
+
+### Performance NON-NEGOTIABLES
+- **NEVER** animate `width`, `height`, `padding`, or `layout` prop on large lists.
+- **ALWAYS** animate `scale`, `opacity`, `x`, `y` (GPU-accelerated).
+- **NEVER** use `AnimatePresence` on whole page routes (causes hydration/scroll issues).
 
 ---
 

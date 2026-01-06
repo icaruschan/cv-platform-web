@@ -94,6 +94,17 @@ Your output MUST be a complete, production-ready style guide in Markdown format:
 
 6. **Component Patterns:** Brief descriptions of key UI patterns to use (e.g., glassmorphism cards, gradient borders).
 
+7. **Motion Personality:**
+    Analyze the "Vibe" and select ONE motion profile:
+    - **STUDIO**: For creative, design-heavy, elegant briefs. (Overdamped, slow, fluid)
+    - **TECH**: For developer, startup, SaaS briefs. (Underdamped, snappy, precise)
+    
+    Define this in a new \`MOODBOARD_CONFIG\` section at the end of the Style Guide in this exact format:
+    \`\`\`\`\`\`
+    ## MOODBOARD_CONFIG
+        - Motion Profile: [STUDIO or TECH]
+    \`\`\`\`\`\`        
+
 Output ONLY the Markdown content. Make it beautiful — this document itself should reflect the quality of the design system.`;
 
     const userMessage = `## Design Moodboard
