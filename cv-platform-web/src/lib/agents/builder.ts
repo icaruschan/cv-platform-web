@@ -74,7 +74,22 @@ export async function generateSite(
     // Extract style guide and requirements from specs
     const styleGuide = specs.find(s => s.path.includes('STYLE_GUIDE'))?.content || '';
     const requirements = specs.find(s => s.path.includes('REQUIREMENTS'))?.content || '';
-    const sectionSpecs = specs.filter(s => s.path.includes('sections/'));
+
+    // Handle both old format (sections/*.md) and new format (SECTION_SPECS.md)
+    let sectionSpecsText = '';
+    const legacySectionSpecs = specs.filter(s => s.path.includes('sections/'));
+    const combinedSectionSpecs = specs.find(s => s.path.includes('SECTION_SPECS'));
+
+    if (legacySectionSpecs.length > 0) {
+      // Old format: individual section files
+      sectionSpecsText = legacySectionSpecs.map(s => {
+        const name = s.path.split('/').pop()?.replace('.md', '') || 'section';
+        return `\n--- SPEC FOR SECTION: ${name.toUpperCase()} ---\n${s.content}\n`;
+      }).join('\n');
+    } else if (combinedSectionSpecs) {
+      // New format: combined SECTION_SPECS.md
+      sectionSpecsText = combinedSectionSpecs.content;
+    }
 
     // Extract social links and profile data
     const socialLinks = extractSocialLinks(brief);
@@ -88,12 +103,6 @@ export async function generateSite(
       impact: p.impact || '',
       link: p.link || ''
     })), null, 2);
-
-    // Build section specs string
-    const sectionSpecsText = sectionSpecs.map(s => {
-      const name = s.path.split('/').pop()?.replace('.md', '') || 'section';
-      return `\n--- SPEC FOR SECTION: ${name.toUpperCase()} ---\n${s.content}\n`;
-    }).join('\n');
 
     // Build the comprehensive system prompt
     const systemPrompt = buildSystemPrompt(
