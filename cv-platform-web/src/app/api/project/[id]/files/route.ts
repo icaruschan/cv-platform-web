@@ -12,7 +12,7 @@ export async function GET(
 
         const { data: files, error } = await supabase
             .from('files')
-            .select('id, path, content, created_at')
+            .select('id, path, content, updated_at')
             .eq('project_id', id)
             .order('path');
 
