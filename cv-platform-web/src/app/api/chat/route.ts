@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { ChatRequest, ChatResponse } from '@/lib/types';
 import { MOTION_SYSTEM_PROMPT, TECHNICAL_CONSTRAINTS_PROMPT } from '@/lib/agents/system-prompts';
+import { detectErrors, autoFixErrors, ThoughtStep, ValidationError } from '@/lib/agents/builder';
 
 export const maxDuration = 120; // 2 minutes
 export const dynamic = 'force-dynamic';
@@ -11,17 +12,29 @@ const openai = new OpenAI({
     baseURL: "https://openrouter.ai/api/v1",
 });
 
-const GEMINI_MODEL = process.env.GEMINI_FLASH_MODEL || "google/gemini-3-flash-preview";
+const GEMINI_MODEL = process.env.GEMINI_FLASH_MODEL || "google/gemini-pro";
 
 export async function POST(request: Request) {
+    const thoughtSteps: ThoughtStep[] = [];
+    const startTime = Date.now();
+
+    // Step 1: Thinking
+    thoughtSteps.push({
+        id: `chat-think-${Date.now()}`,
+        type: 'thinking',
+        message: 'Analyzing your request...',
+        duration: 0,
+    });
+
     try {
         const { messages, currentFiles } = await request.json() as ChatRequest;
+        const userPrompt = messages[messages.length - 1].content;
 
         const systemPrompt = `You are the AI Editor for a Portfolio Builder.
 You have full access to the source code. Your job is to EDIT the code based on user requests.
 
 ## CONTEXT
-The site is built with Next.js 14, Tailwind CSS, and Framer Motion.
+The site is built with Next.js 14 (Pages Router fallback), Tailwind CSS, and Framer Motion.
 It uses a specific "Motion System" for animations.
 
 ## STRICT RULES
@@ -34,7 +47,7 @@ It uses a specific "Motion System" for animations.
 
 2. **Constraints**:
    - Do NOT break the build.
-   - Do NOT remove 'use client' if it exists.
+   - Do NOT use 'use client' (we are in Pages Router mode for Sandpack).
    - Do NOT invent new libraries. Use what is installed (Lucide/Phosphor, Framer Motion).
    
 ${TECHNICAL_CONSTRAINTS_PROMPT}
@@ -42,11 +55,8 @@ ${TECHNICAL_CONSTRAINTS_PROMPT}
 ${MOTION_SYSTEM_PROMPT}
 `;
 
-        // Create a context summary of existing files (to avoid stuffing too much)
-        // For Gemini Flash 1M context, we can actually stuff A LOT.
-        // Let's dump the relevant file names, and maybe the full content of 'active' usage.
-        // For MVP, we'll dump specific key files or simply rely on the user "currentFiles" payload being manageable.
-        // Sandpack usually has < 20 files.
+        // Create context from current files
+        // Limit context if needed, but Gemini 1.5 Flash has huge context window
         const codeContext = Object.entries(currentFiles)
             .map(([path, content]) => `### FILE: ${path}\n${content}`)
             .join('\n\n');
@@ -56,8 +66,16 @@ ${MOTION_SYSTEM_PROMPT}
 ${codeContext}
 
 ## USER REQUEST
-${messages[messages.length - 1].content}
+${userPrompt}
 `;
+
+        // Step 2: Generating
+        const genStart = Date.now();
+        thoughtSteps.push({
+            id: `chat-gen-${Date.now()}`,
+            type: 'generating',
+            message: 'Generating code changes...',
+        });
 
         const response = await openai.chat.completions.create({
             model: GEMINI_MODEL,
@@ -70,15 +88,16 @@ ${messages[messages.length - 1].content}
         });
 
         const reply = response.choices[0].message.content || "";
+        const genDuration = Math.round((Date.now() - genStart) / 1000);
+        thoughtSteps[thoughtSteps.length - 1].duration = genDuration;
 
         // Parse Output
         const updates: Array<{ path: string, content: string }> = [];
         const lines = reply.split('\n');
         let currentFile: string | null = null;
         let currentContent: string[] = [];
-        let naturalMessage = [];
+        let naturalMessageLines: string[] = [];
 
-        // Simple parser
         for (const line of lines) {
             if (line.trim().startsWith('### FILE:')) {
                 if (currentFile) {
@@ -90,7 +109,7 @@ ${messages[messages.length - 1].content}
                 if (currentFile) {
                     currentContent.push(line);
                 } else {
-                    naturalMessage.push(line);
+                    naturalMessageLines.push(line);
                 }
             }
         }
@@ -98,13 +117,70 @@ ${messages[messages.length - 1].content}
             updates.push({ path: currentFile, content: currentContent.join('\n').trim() });
         }
 
+        const naturalMessage = naturalMessageLines.join('\n').trim();
+
+        // Step 3: Validating
+        const valStart = Date.now();
+        thoughtSteps.push({
+            id: `chat-val-${Date.now()}`,
+            type: 'validating',
+            message: 'Checking for errors...',
+        });
+
+        let errors = detectErrors(updates);
+        const valDuration = Math.round((Date.now() - valStart) / 1000);
+        thoughtSteps[thoughtSteps.length - 1].duration = valDuration;
+        thoughtSteps[thoughtSteps.length - 1].details = errors.map(e => `${e.file}: ${e.message}`);
+
+        // Step 4: Auto-fix
+        let fixAttempts = 0;
+        let finalFiles = updates;
+
+        if (errors.filter(e => e.fixable).length > 0) {
+            fixAttempts = 1;
+            thoughtSteps.push({
+                id: `chat-fix-${Date.now()}`,
+                type: 'fixing',
+                message: `Auto-fixing ${errors.filter(e => e.fixable).length} issues...`,
+                details: errors.filter(e => e.fixable).map(e => e.message),
+            });
+
+            finalFiles = autoFixErrors(updates, errors);
+
+            // Re-validate (optional, for logging)
+            errors = detectErrors(finalFiles);
+        }
+
+        // Step 5: Complete
+        const totalDuration = Math.round((Date.now() - startTime) / 1000);
+        thoughtSteps.push({
+            id: `chat-complete-${Date.now()}`,
+            type: 'complete',
+            message: `Updated ${finalFiles.length} files`,
+            duration: totalDuration,
+        });
+
         return NextResponse.json({
-            message: naturalMessage.join('\n').trim(),
-            files: updates
-        } as ChatResponse);
+            message: naturalMessage,
+            files: finalFiles,
+            thoughtSteps,
+            validationErrors: errors,
+            fixAttempts
+        });
 
     } catch (error: any) {
         console.error("Chat API Error:", error);
-        return NextResponse.json({ message: "Error processing request", files: [] }, { status: 500 });
+
+        thoughtSteps.push({
+            id: `chat-error-${Date.now()}`,
+            type: 'error',
+            message: error.message || "Error processing request",
+        });
+
+        return NextResponse.json({
+            message: "I encountered an error while processing your request.",
+            files: [],
+            thoughtSteps
+        }, { status: 500 });
     }
 }

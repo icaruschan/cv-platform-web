@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import EditorWrapper from '@/components/editor/EditorWrapper';
+import EditorPage from '@/components/editor/EditorPage';
 import { Project, FileRecord } from '@/lib/types';
 import { notFound } from 'next/navigation';
 
@@ -44,7 +44,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
     // if (project.magic_token !== token) return <div>Unauthorized</div>;
 
     return (
-        <EditorWrapper
+        <EditorPage
             project={project as Project}
             files={files as FileRecord[]}
         />

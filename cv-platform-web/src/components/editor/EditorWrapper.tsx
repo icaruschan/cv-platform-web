@@ -40,12 +40,12 @@ const EditorLayout = ({
     // Plan B: "I'm Stuck" button that sends the current code + "Fix any build errors" prompt.
 
     return (
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden h-full">
             {/* Chat Sidebar */}
-            <div className="w-80 border-r border-neutral-800 flex flex-col bg-neutral-900/50 backdrop-blur-sm">
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="w-80 border-r border-neutral-800 flex flex-col bg-neutral-900/50 backdrop-blur-sm h-full min-h-0">
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
                     {messages.map((m: any, i: number) => (
-                        <div key={i} className={clsx("text-sm p-3 rounded-lg max-w-[90%]",
+                        <div key={i} className={clsx("text-sm p-3 rounded-lg max-w-[90%] break-words",
                             m.role === 'user' ? "bg-blue-600 ml-auto text-white" : "bg-neutral-800 mr-auto text-neutral-200"
                         )}>
                             {m.content}
@@ -58,7 +58,7 @@ const EditorLayout = ({
                     )}
                 </div>
 
-                <div className="p-4 border-t border-neutral-800 bg-neutral-900 space-y-2">
+                <div className="p-4 border-t border-neutral-800 bg-neutral-900 space-y-2 flex-shrink-0">
                     <button
                         onClick={() => onAutoFix("Analyze the code for any build errors or runtime crashes and fix them immediately.")}
                         className="w-full bg-red-500/10 text-red-500 hover:bg-red-500/20 text-xs py-2 rounded flex items-center justify-center gap-2 transition"

@@ -1,5 +1,13 @@
+/**
+ * Spec Agent V2 - Single LLM Call
+ * 
+ * Simplified spec agent that uses pre-built vibe style guides
+ * and generates all section specs in a single LLM call.
+ */
+
 import OpenAI from 'openai';
 import { Brief, Moodboard } from '../types';
+import { getVibeStyleGuide } from '../vibes';
 
 const openai = new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY,
@@ -7,20 +15,17 @@ const openai = new OpenAI({
 });
 
 // Use Pro model for higher quality specs
-const GEMINI_MODEL = process.env.GEMINI_PRO_MODEL || "google/gemini-3-pro-preview";
+const GEMINI_MODEL = process.env.GEMINI_PRO_MODEL || "google/gemini-2.5-pro-preview-05-06";
 
-// ============================================================================
-// TYPES
-// ============================================================================
+// Types
+interface SpecOutput {
+    path: string;
+    content: string;
+}
 
 interface Section {
     name: string;
     description: string;
-}
-
-interface SpecOutput {
-    path: string;
-    content: string;
 }
 
 // ============================================================================
@@ -31,268 +36,173 @@ export async function generateSpecs(
     brief: Brief,
     moodboard: Moodboard
 ): Promise<SpecOutput[]> {
-    console.log('📐 Starting Spec Agent (The Architect)...');
+    console.log('📐 Starting Spec Agent V2 (Single Call)...');
 
     const outputs: SpecOutput[] = [];
 
     try {
-        // Step 1: Generate Style Guide
-        console.log('   🎨 Generating STYLE_GUIDE.md...');
-        const styleGuide = await generateStyleGuide(brief, moodboard);
+        // Step 1: Use pre-built style guide from vibe
+        console.log('   🎨 Using vibe-based STYLE_GUIDE.md...');
+        const styleGuide = getVibeStyleGuide(moodboard);
         outputs.push({ path: 'docs/STYLE_GUIDE.md', content: styleGuide });
 
-        // Step 2: Determine Sections Dynamically
+        // Step 2: Determine sections
         const sections = determineSections(brief);
-        console.log(`   📋 Determined ${sections.length} sections: ${sections.map(s => s.name).join(', ')}`);
+        console.log(`   📋 Sections: ${sections.map(s => s.name).join(', ')}`);
 
-        // Step 3: Generate Project Requirements
-        console.log('   📋 Generating PROJECT_REQUIREMENTS.md...');
-        const requirements = await generateProjectRequirements(brief, styleGuide, sections);
-        outputs.push({ path: 'docs/PROJECT_REQUIREMENTS.md', content: requirements });
+        // Step 3: Generate ALL specs in ONE LLM call
+        console.log('   📄 Generating all specs in single call...');
+        const allSpecs = await generateAllSpecsInOneCall(brief, moodboard, styleGuide, sections);
+        outputs.push(...allSpecs);
 
-        // Step 4: Generate Individual Section Specs
-        console.log('   📄 Generating Section Specs...');
-        const sectionSpecs = await generateSectionSpecs(brief, moodboard, sections);
-        outputs.push(...sectionSpecs);
-
-        console.log(`   ✅ Spec Agent complete. Generated ${outputs.length} documents.`);
+        console.log(`   ✅ Spec Agent V2 complete. Generated ${outputs.length} documents.`);
         return outputs;
 
     } catch (error) {
-        console.error("Spec Agent Failed:", error);
+        console.error("Spec Agent V2 Failed:", error);
         // Return minimal fallback
         return [
-            { path: 'docs/STYLE_GUIDE.md', content: createFallbackStyleGuide(brief, moodboard) },
+            { path: 'docs/STYLE_GUIDE.md', content: getVibeStyleGuide(moodboard) },
             { path: 'docs/PROJECT_REQUIREMENTS.md', content: createFallbackRequirements(brief) }
         ];
     }
 }
 
 // ============================================================================
-// STEP 1: GENERATE STYLE GUIDE
-// ============================================================================
-
-async function generateStyleGuide(brief: Brief, moodboard: Moodboard): Promise<string> {
-    const systemPrompt = `You are a world-class Design Systems Engineer with over 15 years of experience at top agencies like Pentagram, IDEO, and Google. You are renowned for creating aesthetically stunning, harmonious design systems that translate beautifully into award-winning websites.
-
-Your task is to create a comprehensive STYLE_GUIDE.md that will serve as the "Single Source of Truth" for building a visually breathtaking portfolio website.
-
-## YOUR DESIGN PHILOSOPHY:
-- Every color choice should evoke emotion and reinforce brand identity
-- Typography must create visual hierarchy that guides the eye naturally
-- Spacing should breathe — generous whitespace is a feature, not a bug
-- Animations should feel organic and purposeful, never gimmicky
-
-## OUTPUT REQUIREMENTS:
-Your output MUST be a complete, production-ready style guide in Markdown format:
-
-1. **Design Philosophy:** A compelling 2-3 sentence vision statement capturing the aesthetic soul of this project.
-
-2. **Color Palette:** Define CSS variables with HSL values for flexibility:
-    - \`--color-primary\` (the hero accent color)
-    - \`--color-secondary\`
-    - \`--color-background\` (main background)
-    - \`--color-foreground\` (main text)
-    - \`--color-muted\` (subtle backgrounds)
-    - \`--color-muted-foreground\` (subtle text)
-    - \`--color-accent\` (highlights)
-    - \`--color-border\`
-    - \`--color-card\` (card backgrounds)
-
-3. **Typography:** Define with Google Font names:
-    - \`--font-heading\` (display/heading font)
-    - \`--font-body\` (readable body font)
-    - Font sizes using clamp() for fluid typography:
-      - \`--font-size-hero\`: clamp(2.5rem, 5vw, 4.5rem)
-      - \`--font-size-h1\` through \`--font-size-body\`
-    - Font weights for heading and body
-
-4. **Spacing & Layout:**
-    - 8px grid system: --space-1 (0.25rem) through --space-20 (5rem)
-    - Border radius scale: sm, md, lg, full
-    - Container max-width
-    - Section padding defaults
-
-5. **Animation Guidelines:**
-    - Transition timing functions (ease-out for enters, ease-in for exits)
-    - Default durations: fast (150ms), base (300ms), slow (500ms)
-    - Scroll reveal patterns (fade-up, slide-in)
-    - Hover state philosophy
-
-6. **Component Patterns:** Brief descriptions of key UI patterns to use (e.g., glassmorphism cards, gradient borders).
-
-7. **Motion Personality:**
-    Analyze the "Vibe" and select ONE motion profile:
-    - **STUDIO**: For creative, design-heavy, elegant briefs. (Overdamped, slow, fluid)
-    - **TECH**: For developer, startup, SaaS briefs. (Underdamped, snappy, precise)
-    
-    Define this in a new \`MOODBOARD_CONFIG\` section at the end of the Style Guide in this exact format:
-    \`\`\`
-    ## MOODBOARD_CONFIG
-    - Motion Profile: [STUDIO or TECH]
-    \`\`\`
-
-Output ONLY the Markdown content. Make it beautiful — this document itself should reflect the quality of the design system.`;
-
-    const userMessage = `## Design Moodboard
-
-${moodboard.visual_direction}
-
-### Color Palette
-${JSON.stringify(moodboard.color_palette, null, 2)}
-
-### Typography
-${JSON.stringify(moodboard.typography, null, 2)}
-
-### UI Patterns
-${JSON.stringify(moodboard.ui_patterns, null, 2)}
-
-### Motion
-${JSON.stringify(moodboard.motion, null, 2)}
-
----
-
-## Product Brief
-
-**Name:** ${brief.personal.name}
-**Title:** ${brief.personal.role}
-**Tagline:** ${brief.personal.tagline}
-**Summary:** ${brief.personal.bio || 'Not provided'}
-
-### Vibe
-${brief.style.vibe}
-
-### Work Experience
-${brief.work.map((p: { title: string; role: string; impact?: string }) => `- ${p.title}: ${p.role}${p.impact ? ' - ' + p.impact : ''}`).join('\n')}`;
-
-    try {
-        const response = await openai.chat.completions.create({
-            model: GEMINI_MODEL,
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userMessage }
-            ],
-            temperature: 0.7
-        });
-
-        return response.choices[0].message.content || createFallbackStyleGuide(brief, moodboard);
-    } catch (error) {
-        console.error('   ❌ Style Guide generation failed:', error);
-        return createFallbackStyleGuide(brief, moodboard);
-    }
-}
-
-// ============================================================================
-// STEP 2: DETERMINE SECTIONS DYNAMICALLY
+// DETERMINE SECTIONS
 // ============================================================================
 
 function determineSections(brief: Brief): Section[] {
-    const sections: Section[] = [];
+    const sections: Section[] = [
+        { name: 'hero', description: 'The first impression - name, role, tagline, and primary CTA' },
+        { name: 'about', description: 'Personal story, background, and what drives them' }
+    ];
 
-    // Hero is always first
-    sections.push({
-        name: 'hero',
-        description: 'Hero section with name, tagline, and CTA'
-    });
+    // Add projects if they have work to show
+    if (brief.work && brief.work.length > 0) {
+        sections.push({
+            name: 'projects',
+            description: `Showcase of ${brief.work.length} projects with details and impact`
+        });
+    }
 
-    // About section - ALWAYS include
-    sections.push({
-        name: 'about',
-        description: 'About section with bio and professional background'
-    });
+    // Skills section for developers/tech roles
+    const techRoles = ['developer', 'engineer', 'programmer', 'designer', 'architect'];
+    const role = brief.personal.role?.toLowerCase() || '';
+    if (techRoles.some(t => role.includes(t))) {
+        sections.push({
+            name: 'skills',
+            description: 'Technical skills, tools, and competencies'
+        });
+    }
 
-    // Projects section - ALWAYS include (this is a portfolio after all)
-    sections.push({
-        name: 'projects',
-        description: 'Projects showcase using bento grid layout'
-    });
-
-    // Skills section - ALWAYS include (AI can infer from role/projects)
-    sections.push({
-        name: 'skills',
-        description: 'Skills and technologies section (inferred from projects and role)'
-    });
-
-    // Testimonials section - The Brief interface doesn't have testimonials, skip for now
-    // Future: Add testimonials to Brief interface if needed
-
-    // Contact is always last
+    // Always add contact
     sections.push({
         name: 'contact',
-        description: 'Contact form and social links'
+        description: 'Call to action with contact information and social links'
     });
 
     return sections;
 }
 
 // ============================================================================
-// STEP 3: GENERATE PROJECT REQUIREMENTS
+// SINGLE LLM CALL FOR ALL SPECS
 // ============================================================================
 
-async function generateProjectRequirements(
+async function generateAllSpecsInOneCall(
     brief: Brief,
+    moodboard: Moodboard,
     styleGuide: string,
     sections: Section[]
-): Promise<string> {
-    const systemPrompt = `You are a Senior Technical Lead. Create a PROJECT_REQUIREMENTS.md document that consolidates project information.
+): Promise<SpecOutput[]> {
 
-OUTPUT STRUCTURE:
+    const sectionList = sections.map((s, i) => `${i + 1}. ${s.name.toUpperCase()}: ${s.description}`).join('\n');
+
+    const systemPrompt = `You are a world-class UI/UX Architect creating production-ready specifications.
+
+Your task is to generate TWO documents in a single response:
+
+1. **PROJECT_REQUIREMENTS.md** - High-level technical requirements
+2. **SECTION_SPECS.md** - Detailed specs for each section
+
+## STYLE GUIDE (Already defined):
+${styleGuide}
+
+## SECTIONS TO SPECIFY:
+${sectionList}
+
+## OUTPUT FORMAT:
+
+Respond with EXACTLY this structure:
+
+---FILE: docs/PROJECT_REQUIREMENTS.md---
 # Project Requirements
 
-## 1. Project Overview
-[Extract from the brief: What, Who, Goal - 3 bullet points max]
+## Overview
+[Brief summary of the portfolio]
 
-## 2. Tech Stack
-| Technology | Purpose |
-|------------|---------|
-[List: Next.js 14, Tailwind CSS, Framer Motion, Phosphor Icons, etc.]
+## Technical Stack
+- Framework: Next.js with Pages Router
+- Styling: Tailwind CSS + custom CSS
+- Animations: Framer Motion
+- Fonts: Google Fonts
 
-## 3. Dependencies
-- list npm packages needed based on the style guide effects
+## Sections
+[List each section with brief requirements]
 
-## 4. Design System
-Reference: See STYLE_GUIDE.md for complete design specifications.
+## Accessibility
+- WCAG 2.1 AA compliance
+- Semantic HTML
+- Keyboard navigation
 
-## 5. Page Sections
-| Section | Description | Status |
-|---------|-------------|--------|
-${sections.map(s => `| ${s.name.charAt(0).toUpperCase() + s.name.slice(1)} | ${s.description} | Pending |`).join('\n')}
+## Performance
+- Core Web Vitals optimized
+- Lazy loading for images
+- Minimal JavaScript
 
-## 6. File Structure
-\`\`\`
-app/
-├── layout.tsx
-├── page.tsx
-├── globals.css
-components/
-├── Hero.tsx
-├── About.tsx
-├── Projects.tsx
-├── Skills.tsx
-├── Contact.tsx
-└── ui/
-    └── Button.tsx
-lib/
-└── utils.ts
-\`\`\`
+---FILE: docs/SECTION_SPECS.md---
+# Section Specifications
 
-## 7. Responsive Breakpoints
-- Mobile: < 768px
-- Tablet: 768px - 1024px
-- Desktop: > 1024px
+${sections.map(s => `## ${s.name.charAt(0).toUpperCase() + s.name.slice(1)} Section
 
-RULES:
-- Keep it under 80 lines
-- Do NOT duplicate the STYLE_GUIDE content
-- This is an overview/index document`;
+### Purpose
+${s.description}
 
-    const userMessage = `## Product Brief
-Name: ${brief.personal.name}
-Title: ${brief.personal.role}
-Tagline: ${brief.personal.tagline}
+### Layout
+[Describe layout: container, grid, spacing]
 
-## Style Guide (Reference Only - First 500 chars)
-${styleGuide.substring(0, 500)}...`;
+### Components
+[List key components with brief specs]
+
+### Animations
+[Entrance animations, hover states]
+
+### Responsive
+[Mobile/tablet/desktop breakpoints]
+
+`).join('')}
+
+---END---
+
+Be concise but specific. Focus on actionable specs the builder can implement.`;
+
+    const userMessage = `## Brief
+
+**Name:** ${brief.personal.name}
+**Role:** ${brief.personal.role}
+**Tagline:** ${brief.personal.tagline}
+**Bio:** ${brief.personal.bio || 'Not provided'}
+
+### Vibe
+${brief.style.vibe}
+
+### Work Experience
+${brief.work.map(p => `- **${p.title}**: ${p.role}${p.impact ? ' — ' + p.impact : ''}`).join('\n')}
+
+### Socials
+${Object.entries(brief.socials || {}).map(([k, v]) => `- ${k}: ${v}`).join('\n') || 'None provided'}
+
+Generate the PROJECT_REQUIREMENTS.md and SECTION_SPECS.md now.`;
 
     try {
         const response = await openai.chat.completions.create({
@@ -301,200 +211,142 @@ ${styleGuide.substring(0, 500)}...`;
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userMessage }
             ],
-            temperature: 0.5
+            temperature: 0.6,
+            max_tokens: 4000
         });
 
-        return response.choices[0].message.content || createFallbackRequirements(brief);
+        const content = response.choices[0].message.content || '';
+
+        // Parse the response into separate files
+        return parseSpecsResponse(content, brief);
+
     } catch (error) {
-        console.error('   ❌ Project Requirements generation failed:', error);
-        return createFallbackRequirements(brief);
+        console.error('   ❌ All-in-one specs generation failed:', error);
+        return [
+            { path: 'docs/PROJECT_REQUIREMENTS.md', content: createFallbackRequirements(brief) },
+            { path: 'docs/SECTION_SPECS.md', content: createFallbackSectionSpecs(sections) }
+        ];
     }
 }
 
 // ============================================================================
-// STEP 4: GENERATE SECTION SPECS
+// RESPONSE PARSER
 // ============================================================================
 
-async function generateSectionSpecs(
-    brief: Brief,
-    moodboard: Moodboard,
-    sections: Section[]
-): Promise<SpecOutput[]> {
+function parseSpecsResponse(content: string, brief: Brief): SpecOutput[] {
     const outputs: SpecOutput[] = [];
 
-    for (let i = 0; i < sections.length; i++) {
-        const section = sections[i];
-        console.log(`      - Generating ${section.name}...`);
+    // Split by file markers
+    const fileRegex = /---FILE:\s*([\w\/\.]+)---\s*([\s\S]*?)(?=---FILE:|---END---|$)/gi;
+    let match;
 
-        const systemPrompt = `You are a world-class UI/UX Architect with 15+ years of experience designing award-winning websites for clients like Apple, Stripe, and Linear. Your specifications are so precise that developers can build pixel-perfect implementations without additional clarification.
+    while ((match = fileRegex.exec(content)) !== null) {
+        const path = match[1].trim();
+        const fileContent = match[2].trim();
 
-Create a production-ready specification for the "${section.name.toUpperCase()}" section.
-
-## YOUR STANDARDS:
-- Mobile-first design (320px → 1280px)
-- Every element must have a purpose — no decorative noise
-- Animations should guide attention, not distract
-- Accessibility is non-negotiable (WCAG 2.1 AA minimum)
-
-## OUTPUT FORMAT:
-# ${i + 1}. ${section.name.charAt(0).toUpperCase() + section.name.slice(1)} Section
-
-## Purpose
-${section.description}
-
-## Layout Architecture
-- Container: [max-width, padding, background]
-- Grid structure: [columns for mobile/tablet/desktop]
-- Vertical rhythm: [spacing between elements]
-
-## Component Breakdown
-- [Component name with specific props/variants]
-- [Include shadcn/ui pattern references where applicable]
-
-## Content Mapping
-- [Heading] → uses: name, title, or tagline from brief
-- [Body text] → uses: summary or description from brief
-- [Images] → uses: profile image or project images from brief
-
-## Animation Choreography (Framer Motion)
-- Entry animation: [type, duration, delay, stagger]
-- Scroll-triggered: [threshold, animation]
-- Hover/interaction: [scale, color, shadow changes]
-
-## Accessibility Checklist
-- Focus states for interactive elements
-- Semantic HTML structure
-- Color contrast requirements
-
-## Design Notes
-- [Specific visual treatments tied to moodboard colors/patterns]
-
-Keep it under 50 lines. Be specific, actionable, and brilliant.`;
-
-        const userMessage = `## Moodboard
-${moodboard.visual_direction}
-
-## Brief
-Name: ${brief.personal.name}
-Title: ${brief.personal.role}
-Tagline: ${brief.personal.tagline}
-Summary: ${brief.personal.bio || 'Not provided'}
-
-## Work Experience
-${brief.work.map((p: { title: string; role: string }) => `- ${p.title}: ${p.role}`).join('\n')}`;
-
-        try {
-            const response = await openai.chat.completions.create({
-                model: GEMINI_MODEL,
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: userMessage }
-                ],
-                temperature: 0.6
-            });
-
-            const content = response.choices[0].message.content || `# ${section.name} Section\n\nGeneration failed.`;
-            outputs.push({
-                path: `docs/sections/${i + 1}.${section.name}.md`,
-                content: content
-            });
-            console.log(`      ✅ ${section.name} spec generated.`);
-
-        } catch (error) {
-            console.error(`      ❌ Failed to generate ${section.name}:`, error);
-            outputs.push({
-                path: `docs/sections/${i + 1}.${section.name}.md`,
-                content: `# ${section.name} Section\n\nGeneration failed. Please regenerate.`
-            });
+        if (path && fileContent) {
+            outputs.push({ path, content: fileContent });
         }
+    }
+
+    // If parsing failed, try to extract content another way
+    if (outputs.length === 0) {
+        // Look for markdown headings as file separators
+        if (content.includes('# Project Requirements')) {
+            const reqMatch = content.match(/# Project Requirements[\s\S]*?(?=# Section Specifications|$)/);
+            if (reqMatch) {
+                outputs.push({ path: 'docs/PROJECT_REQUIREMENTS.md', content: reqMatch[0].trim() });
+            }
+        }
+
+        if (content.includes('# Section Specifications')) {
+            const specMatch = content.match(/# Section Specifications[\s\S]*/);
+            if (specMatch) {
+                outputs.push({ path: 'docs/SECTION_SPECS.md', content: specMatch[0].trim() });
+            }
+        }
+    }
+
+    // If still empty, use fallback
+    if (outputs.length === 0) {
+        console.log('   ⚠️ Could not parse specs response, using fallback');
+        const sections = determineSections(brief);
+        return [
+            { path: 'docs/PROJECT_REQUIREMENTS.md', content: createFallbackRequirements(brief) },
+            { path: 'docs/SECTION_SPECS.md', content: createFallbackSectionSpecs(sections) }
+        ];
     }
 
     return outputs;
 }
 
 // ============================================================================
-// FALLBACK GENERATORS
+// FALLBACKS
 // ============================================================================
-
-function createFallbackStyleGuide(brief: Brief, moodboard: Moodboard): string {
-    return `# Style Guide
-
-## Design Philosophy
-A clean, modern portfolio for ${brief.personal.name} that emphasizes clarity and professional presentation.
-
-## Color Palette
-\`\`\`css
-:root {
-    --color-primary: ${moodboard.color_palette.primary};
-    --color-secondary: ${moodboard.color_palette.secondary};
-    --color-accent: ${moodboard.color_palette.accent};
-    --color-background: ${moodboard.color_palette.background};
-    --color-foreground: ${moodboard.color_palette.text};
-    --color-muted: ${moodboard.color_palette.surface};
-    --color-border: hsl(0 0% 89%);
-}
-\`\`\`
-
-## Typography
-\`\`\`css
-:root {
-    --font-heading: '${moodboard.typography.heading_font}', system-ui, sans-serif;
-    --font-body: '${moodboard.typography.body_font}', system-ui, sans-serif;
-    --font-size-hero: clamp(2.5rem, 5vw, 4.5rem);
-    --font-size-h1: clamp(2rem, 4vw, 3rem);
-    --font-size-h2: clamp(1.5rem, 3vw, 2rem);
-    --font-size-body: 1rem;
-}
-\`\`\`
-
-## Spacing
-\`\`\`css
-:root {
-    --space-1: 0.25rem;
-    --space-2: 0.5rem;
-    --space-4: 1rem;
-    --space-8: 2rem;
-    --space-16: 4rem;
-}
-\`\`\`
-
-## Animation
-- Transition: 300ms ease-out
-- Hover scale: 1.02
-- Entry: fade-up
-
-## MOODBOARD_CONFIG
-- Motion Profile: ${moodboard.motion.profile}
-`;
-}
 
 function createFallbackRequirements(brief: Brief): string {
     return `# Project Requirements
 
-## 1. Project Overview
-- Portfolio website for ${brief.personal.name}
-- Role: ${brief.personal.role}
-- Goal: Showcase professional work and attract opportunities
+## Overview
+Portfolio website for ${brief.personal.name}, a ${brief.personal.role}.
 
-## 2. Tech Stack
-| Technology | Purpose |
-|------------|---------|
-| Next.js 14 | Framework |
-| Tailwind CSS | Styling |
-| Framer Motion | Animations |
-| Phosphor Icons | Iconography |
+## Technical Stack
+- Framework: Next.js with Pages Router
+- Styling: Tailwind CSS
+- Animations: Framer Motion
+- Fonts: Google Fonts (Inter)
 
-## 3. Page Sections
-| Section | Description | Status |
-|---------|-------------|--------|
-| Hero | Main landing with name and tagline | Pending |
-| About | Bio and background | Pending |
-| Projects | Portfolio showcase | Pending |
-| Contact | Contact form and links | Pending |
+## Sections
+1. Hero - Introduction with name, role, and CTA
+2. About - Personal story and background
+3. Projects - Work showcase
+4. Contact - Contact information and socials
 
-## 4. Responsive Breakpoints
-- Mobile: < 768px
-- Tablet: 768px - 1024px
-- Desktop: > 1024px
+## Accessibility
+- WCAG 2.1 AA compliance
+- Semantic HTML structure
+- Keyboard navigation support
+
+## Performance
+- Optimized Core Web Vitals
+- Lazy loading for images
+- Minimal JavaScript bundle
 `;
 }
+
+function createFallbackSectionSpecs(sections: Section[]): string {
+    let content = `# Section Specifications\n\n`;
+
+    for (const section of sections) {
+        content += `## ${section.name.charAt(0).toUpperCase() + section.name.slice(1)} Section
+
+### Purpose
+${section.description}
+
+### Layout
+- Full-width container with max-width 1200px
+- Responsive padding: 20px mobile, 40px tablet, 80px desktop
+- Center-aligned with appropriate whitespace
+
+### Components
+- Section heading with subtle animation
+- Content appropriate to section purpose
+- Clear visual hierarchy
+
+### Animations
+- Fade-up on scroll into view
+- Subtle hover states on interactive elements
+
+### Responsive
+- Mobile: Single column, stacked layout
+- Tablet: 2 columns where appropriate
+- Desktop: Full layout with all features
+
+`;
+    }
+
+    return content;
+}
+
+// Re-export determineSections for use in other modules if needed
+export { determineSections };

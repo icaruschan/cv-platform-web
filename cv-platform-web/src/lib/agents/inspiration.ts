@@ -48,8 +48,16 @@ function getFirecrawl(): FirecrawlApp {
 // Use Flash model for speed/cost
 const GEMINI_MODEL = process.env.GEMINI_FLASH_MODEL || "google/gemini-3-flash-preview";
 
-// Max sources to process (balance between quality and API limits)
-const MAX_SOURCES = 5;
+// Max sources to process (reduced to avoid Firecrawl rate limits - 11 req/min on free tier)
+const MAX_SOURCES = 3;
+
+// Delay between Firecrawl API calls to avoid rate limiting (in milliseconds)
+const FIRECRAWL_DELAY_MS = 6000; // 6 seconds = ~10 req/min max
+
+// Helper to add delay between API calls
+function delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 // Types
 interface Source {
@@ -272,22 +280,33 @@ async function resolveGalleryUrls(sources: Source[]): Promise<ResolvedSource[]> 
                 // Gallery sites - need to extract real URL via Firecrawl
                 console.log(`      🔍 ${source.platform}: Resolving external link...`);
 
-                const scrapeResult = await getFirecrawl().scrape(source.url, {
-                    formats: ['links']
-                }) as { success: boolean; links?: string[] };
+                // Add delay to avoid rate limiting
+                await delay(FIRECRAWL_DELAY_MS);
 
-                if (scrapeResult.success && scrapeResult.links) {
-                    const externalUrl = findExternalLink(scrapeResult.links, source.platform);
+                const scrapeResult: any = await getFirecrawl().scrape(source.url, {
+                    formats: ['links']
+                });
+
+                // Debug: Log the actual response structure
+                console.log(`      📦 ${source.platform}: Firecrawl response keys:`, Object.keys(scrapeResult || {}));
+
+                // Handle different Firecrawl SDK response formats
+                // v1 SDK: { success: true, data: { links: [...] } } or { success: true, links: [...] }
+                const links = scrapeResult?.links || scrapeResult?.data?.links || [];
+                const isSuccess = scrapeResult?.success !== false; // Default to true if not explicitly false
+
+                if (isSuccess && links.length > 0) {
+                    const externalUrl = findExternalLink(links, source.platform);
                     if (externalUrl) {
                         resolved.push({ ...source, resolvedUrl: externalUrl, canBrand: true });
                         console.log(`      ✅ ${source.platform}: Resolved to ${externalUrl}`);
                     } else {
                         resolved.push({ ...source, resolvedUrl: source.url, canBrand: false });
-                        console.log(`      ⚠️ ${source.platform}: No external link found`);
+                        console.log(`      ⚠️ ${source.platform}: No external link found in ${links.length} links`);
                     }
                 } else {
                     resolved.push({ ...source, resolvedUrl: source.url, canBrand: false });
-                    console.log(`      ⚠️ ${source.platform}: Scrape failed`);
+                    console.log(`      ⚠️ ${source.platform}: Scrape returned no links (success: ${isSuccess})`);
                 }
             }
         } catch (error) {
@@ -313,18 +332,20 @@ async function resolveTemplateUrl(url: string, platform: string): Promise<string
             }
 
             // Fallback: scrape for preview link
-            const scrapeResult = await getFirecrawl().scrape(url, { formats: ['links'] }) as { success: boolean; links?: string[] };
-            if (scrapeResult.success && scrapeResult.links) {
-                const previewLink = scrapeResult.links.find(link => link.includes('.framer.website'));
+            const scrapeResult: any = await getFirecrawl().scrape(url, { formats: ['links'] });
+            const links = scrapeResult?.links || scrapeResult?.data?.links || [];
+            if (links.length > 0) {
+                const previewLink = links.find((link: string) => link.includes('.framer.website'));
                 return previewLink || null;
             }
         }
 
         if (platform === 'Webflow') {
             // Webflow: Need to scrape for preview link
-            const scrapeResult = await getFirecrawl().scrape(url, { formats: ['links'] }) as { success: boolean; links?: string[] };
-            if (scrapeResult.success && scrapeResult.links) {
-                const previewLink = scrapeResult.links.find(link =>
+            const scrapeResult: any = await getFirecrawl().scrape(url, { formats: ['links'] });
+            const links = scrapeResult?.links || scrapeResult?.data?.links || [];
+            if (links.length > 0) {
+                const previewLink = links.find((link: string) =>
                     link.includes('.webflow.io') || link.includes('preview--')
                 );
                 return previewLink || null;
@@ -372,6 +393,9 @@ async function extractHybridData(sources: ResolvedSource[]): Promise<ExtractedDa
         try {
             // Always try to get screenshot
             console.log(`      📸 ${source.platform}: Capturing screenshot...`);
+
+            // Add delay to avoid rate limiting
+            await delay(FIRECRAWL_DELAY_MS);
 
             // Set up scrape options
             const scrapeOptions: any = {
