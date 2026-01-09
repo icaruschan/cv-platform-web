@@ -295,6 +295,15 @@ export default function EditorPage({ project, files: initialFiles }: EditorPageP
                 visibleFiles: Object.keys(sandpackFiles),
             }}
             theme="light"
+            customSetup={{
+                dependencies: {
+                    "framer-motion": "^11.0.0",
+                    "@phosphor-icons/react": "^2.0.0",
+                    "clsx": "^2.0.0",
+                    "tailwind-merge": "^2.0.0",
+                    "lucide-react": "^0.263.0"
+                }
+            }}
         >
             <div className="h-full w-full">
                 <CanvasArea visualEditMode={visualEditMode} />
