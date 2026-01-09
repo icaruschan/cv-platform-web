@@ -329,11 +329,15 @@ export default function EditorPage({ project, files: initialFiles }: EditorPageP
             theme="light"
             customSetup={{
                 dependencies: {
+                    "next": "14.2.4",
+                    "react": "18.3.1",
+                    "react-dom": "18.3.1",
                     "framer-motion": "^11.0.0",
                     "@phosphor-icons/react": "^2.0.0",
                     "clsx": "^2.0.0",
                     "tailwind-merge": "^2.0.0",
-                    "lucide-react": "^0.263.0"
+                    "lucide-react": "^0.263.0",
+                    "eslint-config-next": "14.2.4"
                 }
             }}
         >
