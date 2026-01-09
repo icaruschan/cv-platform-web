@@ -260,8 +260,19 @@ export default function EditorPage({ project, files: initialFiles }: EditorPageP
                             if (importRegex.test(appContent)) {
                                 appContent = appContent.replace(importRegex, (match) => `${match}\n${fontImports}`);
                             } else {
-                                // Fallback: Prepend to top
-                                appContent = fontImports + appContent;
+                                // Fallback: Prepend to top of file after imports (or very top)
+                                // We check if there are any imports, if so put it after the last one, otherwise top
+                                const lastImportIndex = appContent.lastIndexOf('import ');
+                                if (lastImportIndex !== -1) {
+                                    const endOfImportLine = appContent.indexOf('\n', lastImportIndex);
+                                    if (endOfImportLine !== -1) {
+                                        appContent = appContent.slice(0, endOfImportLine + 1) + fontImports + appContent.slice(endOfImportLine + 1);
+                                    } else {
+                                        appContent = appContent + '\n' + fontImports;
+                                    }
+                                } else {
+                                    appContent = fontImports + appContent;
+                                }
                             }
 
                             updated['/pages/_app.tsx'] = appContent;
