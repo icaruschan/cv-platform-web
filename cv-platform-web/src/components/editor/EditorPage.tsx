@@ -98,15 +98,25 @@ export default function EditorPage({ project, files: initialFiles }: EditorPageP
     // Convert files to Sandpack format with Visual Editing injection
     useEffect(() => {
         if (files && files.length > 0) {
-            const converted = files.reduce((acc, file) => {
-                const path = file.path.startsWith('/') ? file.path : `/${file.path}`;
-                acc[path] = file.content;
-                return acc;
-            }, {} as Record<string, string>);
+            const formattedFiles: Record<string, string> = {};
+            files.forEach(f => {
+                formattedFiles[f.path.startsWith('/') ? f.path : `/${f.path}`] = f.content;
+            });
 
-            // Inject Visual Editing hook into the files
-            const injectedFiles = injectVisualEditing(converted) as Record<string, string>;
-            setSandpackFiles(injectedFiles);
+            // Hot-fix: Ensure _app.tsx has font imports if it uses them
+            if (formattedFiles['/pages/_app.tsx']) {
+                const appContent = formattedFiles['/pages/_app.tsx'];
+                if ((appContent.includes('inter.') || appContent.includes('jetbrainsMono.')) &&
+                    !appContent.includes('next/font/google')) {
+
+                    const fontImports = `import { Inter, JetBrains_Mono } from 'next/font/google';\n\nconst inter = Inter({ subsets: ['latin'], variable: '--font-inter' });\nconst jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains-mono' });\n`;
+
+                    formattedFiles['/pages/_app.tsx'] = appContent.replace('// Configure fonts', fontImports)
+                        .replace('import type { AppProps } from \'next/app\';', 'import type { AppProps } from \'next/app\';\n' + fontImports);
+                }
+            }
+
+            setSandpackFiles(injectVisualEditing(formattedFiles) as Record<string, string>);
             setIsLoading(false);
             setStatus('ready');
         } else {
