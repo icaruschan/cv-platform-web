@@ -19,9 +19,10 @@ async function updateProjectStatus(projectId: string, status: string, message?: 
     console.log(`   📊 Status Update: ${status}${message ? ` - ${message}` : ''}`);
 
     const updateData: any = { status };
-    if (message) {
-        updateData.status_message = message;
-    }
+    // Note: status_message column doesn't exist in DB, messages are handled by status endpoint map
+    // if (message) {
+    //    updateData.status_message = message;
+    // }
     updateData.updated_at = new Date().toISOString();
 
     await supabase
