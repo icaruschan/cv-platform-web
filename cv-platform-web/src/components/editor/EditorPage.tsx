@@ -236,6 +236,20 @@ export default function EditorPage({ project, files: initialFiles }: EditorPageP
                     for (const [path, content] of Object.entries(data.files)) {
                         updated[path] = content as string;
                     }
+
+                    // Hot-fix: Ensure _app.tsx has font imports if it uses them
+                    if (updated['/pages/_app.tsx']) {
+                        const appContent = updated['/pages/_app.tsx'];
+                        if ((appContent.includes('inter.') || appContent.includes('jetbrainsMono.')) &&
+                            !appContent.includes('next/font/google')) {
+
+                            const fontImports = `import { Inter, JetBrains_Mono } from 'next/font/google';\n\nconst inter = Inter({ subsets: ['latin'], variable: '--font-inter' });\nconst jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains-mono' });\n`;
+
+                            updated['/pages/_app.tsx'] = appContent.replace('// Configure fonts', fontImports)
+                                .replace('import type { AppProps } from \'next/app\';', 'import type { AppProps } from \'next/app\';\n' + fontImports);
+                        }
+                    }
+
                     return injectVisualEditing(updated) as Record<string, string>;
                 });
             }
