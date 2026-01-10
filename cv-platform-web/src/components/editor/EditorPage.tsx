@@ -103,17 +103,99 @@ export default function EditorPage({ project, files: initialFiles }: EditorPageP
                 formattedFiles[f.path.startsWith('/') ? f.path : `/${f.path}`] = f.content;
             });
 
-            // Hot-fix: Ensure _app.tsx has font imports if it uses them
-            if (formattedFiles['/pages/_app.tsx']) {
-                const appContent = formattedFiles['/pages/_app.tsx'];
-                if ((appContent.includes('inter.') || appContent.includes('jetbrainsMono.')) &&
-                    !appContent.includes('next/font/google')) {
+            // Ensure Vite Config exists
+            if (!formattedFiles['/vite.config.ts']) {
+                formattedFiles['/vite.config.ts'] = `import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-                    const fontImports = `import { Inter, JetBrains_Mono } from 'next/font/google';\n\nconst inter = Inter({ subsets: ['latin'], variable: '--font-inter' });\nconst jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains-mono' });\n`;
+export default defineConfig({
+  plugins: [react()],
+})`;
+            }
 
-                    formattedFiles['/pages/_app.tsx'] = appContent.replace('// Configure fonts', fontImports)
-                        .replace('import type { AppProps } from \'next/app\';', 'import type { AppProps } from \'next/app\';\n' + fontImports);
-                }
+            // Ensure Index HTML exists (Entry Point)
+            if (!formattedFiles['/index.html']) {
+                formattedFiles['/index.html'] = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portfolio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>`;
+            }
+
+            // Ensure Tailwind config exists
+            if (!formattedFiles['/tailwind.config.js']) {
+                formattedFiles['/tailwind.config.js'] = `module.exports = {
+  content: [
+    "./src/**/*.{js,ts,jsx,tsx}",
+    "./index.html"
+  ],
+  theme: {
+    extend: {
+      colors: {
+        primary: 'var(--color-primary)',
+        secondary: 'var(--color-secondary)',
+        accent: 'var(--color-accent)',
+        background: 'var(--color-background)',
+        foreground: 'var(--color-foreground)',
+      }
+    },
+  },
+  plugins: [],
+};`;
+            }
+
+            // Ensure PostCSS config exists
+            if (!formattedFiles['/postcss.config.js']) {
+                formattedFiles['/postcss.config.js'] = `module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};`;
+            }
+
+            // Ensure package.json exists
+            if (!formattedFiles['/package.json']) {
+                formattedFiles['/package.json'] = JSON.stringify({
+                    name: "portfolio-project",
+                    version: "0.0.0",
+                    private: true,
+                    type: "module",
+                    scripts: {
+                        "dev": "vite",
+                        "build": "vite build",
+                        "preview": "vite preview"
+                    },
+                    dependencies: {
+                        "react": "^18.3.1",
+                        "react-dom": "^18.3.1",
+                        "framer-motion": "^11.0.0",
+                        "@phosphor-icons/react": "^2.0.0",
+                        "clsx": "^2.0.0",
+                        "tailwind-merge": "^2.0.0",
+                        "lucide-react": "^0.263.0"
+                    },
+                    devDependencies: {
+                        "@types/react": "^18.3.3",
+                        "@types/react-dom": "^18.3.0",
+                        "@vitejs/plugin-react": "^4.3.1",
+                        "autoprefixer": "^10.4.19",
+                        "postcss": "^8.4.38",
+                        "tailwindcss": "^3.4.4",
+                        "typescript": "^5.5.3",
+                        "vite": "^5.4.1"
+                    }
+                }, null, 2);
             }
 
             setSandpackFiles(injectVisualEditing(formattedFiles) as Record<string, string>);
@@ -247,38 +329,6 @@ export default function EditorPage({ project, files: initialFiles }: EditorPageP
                         updated[path] = content as string;
                     }
 
-                    // Hot-fix: Ensure _app.tsx has font imports if it uses them
-                    if (updated['/pages/_app.tsx']) {
-                        let appContent = updated['/pages/_app.tsx'];
-                        if ((appContent.includes('inter.') || appContent.includes('jetbrainsMono.')) &&
-                            !appContent.includes('next/font/google')) {
-
-                            const fontImports = `import { Inter, JetBrains_Mono } from 'next/font/google';\n\nconst inter = Inter({ subsets: ['latin'], variable: '--font-inter' });\nconst jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains-mono' });\n\n`;
-
-                            // Try to insert after imports
-                            const importRegex = /import\s+type\s+{\s*AppProps\s*}\s+from\s+['"]next\/app['"];?/;
-                            if (importRegex.test(appContent)) {
-                                appContent = appContent.replace(importRegex, (match) => `${match}\n${fontImports}`);
-                            } else {
-                                // Fallback: Prepend to top of file after imports (or very top)
-                                // We check if there are any imports, if so put it after the last one, otherwise top
-                                const lastImportIndex = appContent.lastIndexOf('import ');
-                                if (lastImportIndex !== -1) {
-                                    const endOfImportLine = appContent.indexOf('\n', lastImportIndex);
-                                    if (endOfImportLine !== -1) {
-                                        appContent = appContent.slice(0, endOfImportLine + 1) + fontImports + appContent.slice(endOfImportLine + 1);
-                                    } else {
-                                        appContent = appContent + '\n' + fontImports;
-                                    }
-                                } else {
-                                    appContent = fontImports + appContent;
-                                }
-                            }
-
-                            updated['/pages/_app.tsx'] = appContent;
-                        }
-                    }
-
                     return injectVisualEditing(updated) as Record<string, string>;
                 });
             }
@@ -331,24 +381,22 @@ export default function EditorPage({ project, files: initialFiles }: EditorPageP
         <WaitingRoom status="building" message="No files yet. Start a conversation!" />
     ) : (
         <SandpackProvider
-            template="nextjs"
+            template="vite-react"
             files={sandpackFiles}
             options={{
-                activeFile: '/pages/index.tsx',
+                activeFile: '/src/App.tsx',
                 visibleFiles: Object.keys(sandpackFiles),
             }}
             theme="light"
             customSetup={{
                 dependencies: {
-                    "next": "14.2.4",
-                    "react": "18.3.1",
-                    "react-dom": "18.3.1",
+                    "react": "^18.3.1",
+                    "react-dom": "^18.3.1",
                     "framer-motion": "^11.0.0",
                     "@phosphor-icons/react": "^2.0.0",
                     "clsx": "^2.0.0",
                     "tailwind-merge": "^2.0.0",
-                    "lucide-react": "^0.263.0",
-                    "eslint-config-next": "14.2.4"
+                    "lucide-react": "^0.263.0"
                 }
             }}
         >

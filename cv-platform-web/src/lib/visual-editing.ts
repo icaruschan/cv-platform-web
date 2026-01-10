@@ -123,92 +123,91 @@ export function useVisualEditing() {
 `;
 
 /**
- * The modified _app.tsx template that includes the visual editing hook.
- */
-export const APP_WITH_VISUAL_EDITING = `import type { AppProps } from 'next/app';
-import '../styles/globals.css';
-import { useVisualEditing } from '../hooks/use-visual-editing';
-
-export default function App({ Component, pageProps }: AppProps) {
-  useVisualEditing();
-  return <Component {...pageProps} />;
-}
-`;
-
-/**
  * Interface for the selected element payload
  */
 export interface SelectedElement {
-    tag: string;
-    id: string | null;
-    className: string | null;
-    textContent: string;
-    selectorPath: string;
+  tag: string;
+  id: string | null;
+  className: string | null;
+  textContent: string;
+  selectorPath: string;
 }
 
 /**
  * Injects the visual editing hook into a set of Sandpack files.
- * This modifies the files in-place to add the hook and patch _app.tsx.
+ * This modifies the files in-place to add the hook and patch src/App.tsx.
  * 
  * @param files - The current Sandpack files object
  * @returns A new files object with visual editing injected
  */
 export function injectVisualEditing(
-    files: Record<string, string | { code: string }>
+  files: Record<string, string | { code: string }>
 ): Record<string, string | { code: string }> {
-    const result = { ...files };
+  const result = { ...files };
 
-    // 1. Add the hook file
-    result['/hooks/use-visual-editing.ts'] = VISUAL_EDITING_HOOK_CODE;
+  // 1. Add the hook file
+  result['/hooks/use-visual-editing.ts'] = VISUAL_EDITING_HOOK_CODE;
 
-    // 2. Check if _app.tsx exists and patch it
-    const appPath = '/pages/_app.tsx';
-    const existingApp = result[appPath];
+  // 2. Patch src/App.tsx (Vite root component)
+  const appPath = '/src/App.tsx';
+  const existingApp = result[appPath];
 
-    if (existingApp) {
-        const appCode = typeof existingApp === 'string' ? existingApp : existingApp.code;
+  if (existingApp) {
+    const appCode = typeof existingApp === 'string' ? existingApp : existingApp.code;
 
-        // Check if already patched
-        if (!appCode.includes('useVisualEditing')) {
-            // Patch: Add import
-            let patchedCode = appCode;
+    // Check if already patched
+    if (!appCode.includes('useVisualEditing')) {
+      // Patch: Add import
+      let patchedCode = appCode;
 
-            // Find the last import line
-            const importRegex = /^import .+ from .+;?\s*$/gm;
-            let lastImportMatch: RegExpExecArray | null = null;
-            let match;
-            while ((match = importRegex.exec(appCode)) !== null) {
-                lastImportMatch = match;
-            }
+      // Find the last import line
+      const importRegex = /^import .+ from .+;?\s*$/gm;
+      let lastImportMatch: RegExpExecArray | null = null;
+      let match;
+      while ((match = importRegex.exec(appCode)) !== null) {
+        lastImportMatch = match;
+      }
 
-            if (lastImportMatch) {
-                const insertPosition = lastImportMatch.index + lastImportMatch[0].length;
-                patchedCode =
-                    appCode.slice(0, insertPosition) +
-                    "\nimport { useVisualEditing } from '../hooks/use-visual-editing';" +
-                    appCode.slice(insertPosition);
-            }
+      if (lastImportMatch) {
+        const insertPosition = lastImportMatch.index + lastImportMatch[0].length;
+        patchedCode =
+          appCode.slice(0, insertPosition) +
+          "\nimport { useVisualEditing } from '../hooks/use-visual-editing';" +
+          appCode.slice(insertPosition);
+      } else {
+        patchedCode = "import { useVisualEditing } from '../hooks/use-visual-editing';\n" + patchedCode;
+      }
 
-            // Patch: Add hook call inside the function body
-            // Find "export default function" and add hook after the opening brace
-            const funcRegex = /export\s+default\s+function\s+\w+\s*\([^)]*\)\s*\{/;
-            const funcMatch = funcRegex.exec(patchedCode);
-            if (funcMatch) {
-                const insertPos = funcMatch.index + funcMatch[0].length;
-                patchedCode =
-                    patchedCode.slice(0, insertPos) +
-                    "\n  useVisualEditing();" +
-                    patchedCode.slice(insertPos);
-            }
+      // Patch: Add hook call inside the component
+      const funcRegex = /export\s+default\s+function\s+\w+\s*\([^)]*\)\s*\{/;
+      const funcMatch = funcRegex.exec(patchedCode);
 
-            result[appPath] = patchedCode;
+      if (funcMatch) {
+        const insertPos = funcMatch.index + funcMatch[0].length;
+        patchedCode =
+          patchedCode.slice(0, insertPos) +
+          "\n  useVisualEditing();" +
+          patchedCode.slice(insertPos);
+      } else {
+        // Try arrow function pattern if strict function declaration failed
+        const arrowRegex = /const\s+\w+\s*=\s*\([^)]*\)\s*=>\s*\{/;
+        const arrowMatch = arrowRegex.exec(patchedCode);
+        if (arrowMatch) {
+          const insertPos = arrowMatch.index + arrowMatch[0].length;
+          patchedCode =
+            patchedCode.slice(0, insertPos) +
+            "\n  useVisualEditing();" +
+            patchedCode.slice(insertPos);
         }
-    } else {
-        // No _app.tsx exists, create one with the hook
-        result[appPath] = APP_WITH_VISUAL_EDITING;
-    }
+      }
 
-    return result;
+      result[appPath] = patchedCode;
+    }
+  } else {
+    console.warn('Could not find src/App.tsx to inject visual editing');
+  }
+
+  return result;
 }
 
 /**
@@ -219,15 +218,12 @@ export function injectVisualEditing(
  * @returns Clean files without the hook
  */
 export function removeVisualEditing(
-    files: Record<string, string | { code: string }>
+  files: Record<string, string | { code: string }>
 ): Record<string, string | { code: string }> {
-    const result = { ...files };
+  const result = { ...files };
 
-    // Remove the hook file
-    delete result['/hooks/use-visual-editing.ts'];
+  // Remove the hook file
+  delete result['/hooks/use-visual-editing.ts'];
 
-    // TODO: Could also revert _app.tsx patches, but that's complex
-    // For now, the hook will just be a no-op if the file is removed
-
-    return result;
+  return result;
 }
