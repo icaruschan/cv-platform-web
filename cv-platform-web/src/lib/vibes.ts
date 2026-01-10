@@ -6,8 +6,6 @@
  */
 
 import { Brief, Moodboard } from './types';
-import * as fs from 'fs';
-import * as path from 'path';
 
 // Vibe metadata for matching
 interface VibeMetadata {
@@ -75,7 +73,7 @@ const VIBE_LIBRARY: VibeMetadata[] = [
         motion: 'TECH',
         visualDirection: 'Cyberpunk aesthetic with vibrant neon glows. Matrix-inspired, terminal aesthetics, glitch effects.',
         uiPatterns: {
-            cardStyle: 'Transparent dark with neon green border, no radius, scanline overlay',
+            cardStyle: 'Transparent dark with neon border, no radius, scanline overlay',
             buttonStyle: 'Outline with neon glow, no radius, uppercase monospace text',
             layoutStructure: 'Terminal-style frames, centered with asymmetric accents'
         }

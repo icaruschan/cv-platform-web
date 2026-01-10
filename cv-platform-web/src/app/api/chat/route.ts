@@ -168,13 +168,15 @@ ${userPrompt}
             fixAttempts
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Chat API Error:", error);
+
+        const errorMessage = error instanceof Error ? error.message : "Error processing request";
 
         thoughtSteps.push({
             id: `chat-error-${Date.now()}`,
             type: 'error',
-            message: error.message || "Error processing request",
+            message: errorMessage,
         });
 
         return NextResponse.json({
