@@ -3,6 +3,14 @@ import FirecrawlApp from '@mendable/firecrawl-js';
 import axios from 'axios';
 import { Brief, Moodboard } from '../types';
 
+interface FirecrawlScrapeResponse {
+    success?: boolean;
+    links?: string[];
+    data?: { links?: string[] };
+    screenshot?: string;
+    json?: Record<string, unknown>;
+}
+
 // --- Configuration ---
 const PLATFORMS = [
     // Gallery sites - need URL resolution to get real site
@@ -142,8 +150,8 @@ export async function generateMoodboard(brief: Brief): Promise<Moodboard> {
         // Step 5: Synthesize to Object
         return synthesizeMoodboardObject(extractedData, visionAnalysis, searchVibe);
 
-    } catch (error) {
-        console.error(`❌ Inspiration engine error: ${error instanceof Error ? error.message : error}`);
+    } catch (error: unknown) {
+        console.error(`❌ Inspiration engine error: ${error instanceof Error ? error.message : String(error)}`);
         return createFallbackMoodboard(brief.style.vibe, String(error));
     }
 }
@@ -238,7 +246,7 @@ async function searchDesignInspiration(vibe: string): Promise<Source[]> {
             } else {
                 console.log(`      ⚠️ ${platform.name}: No results`);
             }
-        } catch (error) {
+        } catch {
             console.warn(`      ⚠️ ${platform.name}: Search failed`);
         }
     }
@@ -283,9 +291,9 @@ async function resolveGalleryUrls(sources: Source[]): Promise<ResolvedSource[]> 
                 // Add delay to avoid rate limiting
                 await delay(FIRECRAWL_DELAY_MS);
 
-                const scrapeResult: any = await getFirecrawl().scrape(source.url, {
-                    formats: ['links']
-                });
+                const scrapeResult = await getFirecrawl().scrape(source.url, {
+                    formats: ['links'] as unknown as any // eslint-disable-line @typescript-eslint/no-explicit-any
+                }) as unknown as FirecrawlScrapeResponse;
 
                 // Debug: Log the actual response structure
                 console.log(`      📦 ${source.platform}: Firecrawl response keys:`, Object.keys(scrapeResult || {}));
@@ -296,7 +304,7 @@ async function resolveGalleryUrls(sources: Source[]): Promise<ResolvedSource[]> 
                 const isSuccess = scrapeResult?.success !== false; // Default to true if not explicitly false
 
                 if (isSuccess && links.length > 0) {
-                    const externalUrl = findExternalLink(links, source.platform);
+                    const externalUrl = findExternalLink(links);
                     if (externalUrl) {
                         resolved.push({ ...source, resolvedUrl: externalUrl, canBrand: true });
                         console.log(`      ✅ ${source.platform}: Resolved to ${externalUrl}`);
@@ -332,7 +340,7 @@ async function resolveTemplateUrl(url: string, platform: string): Promise<string
             }
 
             // Fallback: scrape for preview link
-            const scrapeResult: any = await getFirecrawl().scrape(url, { formats: ['links'] });
+            const scrapeResult = await getFirecrawl().scrape(url, { formats: ['links'] as unknown as any }) as unknown as FirecrawlScrapeResponse; // eslint-disable-line @typescript-eslint/no-explicit-any
             const links = scrapeResult?.links || scrapeResult?.data?.links || [];
             if (links.length > 0) {
                 const previewLink = links.find((link: string) => link.includes('.framer.website'));
@@ -342,7 +350,7 @@ async function resolveTemplateUrl(url: string, platform: string): Promise<string
 
         if (platform === 'Webflow') {
             // Webflow: Need to scrape for preview link
-            const scrapeResult: any = await getFirecrawl().scrape(url, { formats: ['links'] });
+            const scrapeResult = await getFirecrawl().scrape(url, { formats: ['links'] as unknown as any }) as unknown as FirecrawlScrapeResponse; // eslint-disable-line @typescript-eslint/no-explicit-any
             const links = scrapeResult?.links || scrapeResult?.data?.links || [];
             if (links.length > 0) {
                 const previewLink = links.find((link: string) =>
@@ -362,7 +370,7 @@ async function resolveTemplateUrl(url: string, platform: string): Promise<string
 /**
  * Helper: Find external link from gallery page
  */
-function findExternalLink(links: string[], platform: string): string | null {
+function findExternalLink(links: string[]): string | null {
     if (!links || !Array.isArray(links)) return null;
 
     // Filter out internal links and common non-site URLs
@@ -398,7 +406,7 @@ async function extractHybridData(sources: ResolvedSource[]): Promise<ExtractedDa
             await delay(FIRECRAWL_DELAY_MS);
 
             // Set up scrape options
-            const scrapeOptions: any = {
+            const scrapeOptions: Record<string, unknown> = {
                 formats: ['screenshot']
             };
 
@@ -408,10 +416,7 @@ async function extractHybridData(sources: ResolvedSource[]): Promise<ExtractedDa
                 console.log(`      ⏳ ${source.platform}: Waiting for hydration (3s)...`);
             }
 
-            const screenshotResult = await getFirecrawl().scrape(source.resolvedUrl, scrapeOptions) as {
-                success: boolean;
-                screenshot?: string
-            };
+            const screenshotResult = await getFirecrawl().scrape(source.resolvedUrl, scrapeOptions as unknown as any) as unknown as FirecrawlScrapeResponse; // eslint-disable-line @typescript-eslint/no-explicit-any
 
             if (screenshotResult.success) {
                 data.screenshot = screenshotResult.screenshot;
@@ -449,9 +454,9 @@ async function extractHybridData(sources: ResolvedSource[]): Promise<ExtractedDa
                                         }
                                     }
                                 }
-                            } as any
-                        ]
-                    }) as { success: boolean; json?: any };
+                            }
+                        ] as unknown as any // eslint-disable-line @typescript-eslint/no-explicit-any
+                    }) as unknown as { success: boolean; json?: { colors?: Record<string, string>; fonts?: { heading?: string; body?: string } } };
 
                     if (brandingResult.success && brandingResult.json) {
                         data.branding = {
@@ -463,7 +468,7 @@ async function extractHybridData(sources: ResolvedSource[]): Promise<ExtractedDa
                         };
                         console.log(`      ✅ ${source.platform}: Branding extracted`);
                     }
-                } catch (brandError) {
+                } catch {
                     console.warn(`      ⚠️ ${source.platform}: Branding extraction failed`);
                 }
             }
@@ -491,7 +496,7 @@ async function analyzeVisualPatterns(sources: ExtractedData[], vibe: string): Pr
         return null;
     }
 
-    const content: any[] = [
+    const content: Array<OpenAI.Chat.Completions.ChatCompletionContentPart> = [
         {
             type: "text",
             text: `You are a Senior UI/UX Designer. I am building a portfolio website with the vibe: "${vibe}".
@@ -530,7 +535,7 @@ Return in this format:
     screenshots.slice(0, 3).forEach(s => {
         content.push({
             type: "image_url",
-            image_url: { url: s.screenshot }
+            image_url: { url: s.screenshot || '' }
         });
     });
 

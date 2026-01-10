@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { SandpackProvider, SandpackPreview } from '@codesandbox/sandpack-react';
+import { SandpackProvider } from '@codesandbox/sandpack-react';
 import CanvasArea from './CanvasArea';
 import EditorLayout from './EditorLayout';
 import ChatSidebar from './ChatSidebar';
@@ -21,6 +21,13 @@ interface StatusResponse {
     progress: number;
     isComplete: boolean;
     isError: boolean;
+}
+
+interface ThoughtStep {
+    id: string;
+    type: string;
+    message: string;
+    duration?: number;
 }
 
 export default function EditorPage({ project, files: initialFiles }: EditorPageProps) {
@@ -285,7 +292,7 @@ export default defineConfig({
             const newFeedItems: FeedItem[] = [];
 
             if (data.thoughtSteps) {
-                data.thoughtSteps.forEach((step: any) => {
+                data.thoughtSteps.forEach((step: ThoughtStep) => {
                     if (step.type === 'thinking' || step.type === 'validating') {
                         newFeedItems.push({
                             id: step.id,

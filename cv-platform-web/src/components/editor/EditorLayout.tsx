@@ -16,7 +16,7 @@ export default function EditorLayout({
     projectName = 'Untitled Project',
     status = 'draft'
 }: EditorLayoutProps) {
-    const [sidebarWidth, setSidebarWidth] = useState(380);
+    const [sidebarWidth] = useState(320);
 
     const statusConfig = {
         draft: { label: 'Draft', color: 'bg-gray-400' },

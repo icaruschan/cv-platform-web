@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { Brief, Moodboard } from '../types';
-import { MOTION_SYSTEM_PROMPT, TECHNICAL_CONSTRAINTS_PROMPT } from './system-prompts';
+import { MOTION_SYSTEM_PROMPT } from './system-prompts';
 
 const openai = new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY,

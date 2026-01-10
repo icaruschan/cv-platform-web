@@ -118,23 +118,37 @@ function ThoughtAccordion({ content, duration }: { content: string; duration?: n
     const [expanded, setExpanded] = useState(false);
 
     return (
-        <motion.button
-            variants={messageVariants}
-            onClick={() => setExpanded(!expanded)}
-            className="flex items-center gap-2 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors py-1 w-full text-left group"
-        >
-            <div className="w-4 h-4 flex items-center justify-center">
-                <svg className="w-3.5 h-3.5 animate-pulse text-[var(--accent-primary)]" fill="currentColor" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" opacity="0.2" />
-                    <circle cx="12" cy="12" r="4" />
+        <div className="w-full">
+            <motion.button
+                variants={messageVariants}
+                onClick={() => setExpanded(!expanded)}
+                className="flex items-center gap-2 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors py-1 w-full text-left group"
+            >
+                <div className="w-4 h-4 flex items-center justify-center">
+                    <svg className="w-3.5 h-3.5 animate-pulse text-[var(--accent-primary)]" fill="currentColor" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" opacity="0.2" />
+                        <circle cx="12" cy="12" r="4" />
+                    </svg>
+                </div>
+                <span>Thought for {duration || '?'}s</span>
+                <div className="flex-1 h-px bg-[var(--border-subtle)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                <svg className={`w-3 h-3 transition-transform text-[var(--text-tertiary)] ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-            </div>
-            <span>Thought for {duration || '?'}s</span>
-            <div className="flex-1 h-px bg-[var(--border-subtle)] opacity-0 group-hover:opacity-100 transition-opacity" />
-            <svg className={`w-3 h-3 transition-transform text-[var(--text-tertiary)] ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-        </motion.button>
+            </motion.button>
+            <AnimatePresence>
+                {expanded && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                    >
+                        <p className="text-xs text-[var(--text-tertiary)] pl-7 pr-4 pb-2 whitespace-pre-wrap">{content}</p>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
     );
 }
 

@@ -88,7 +88,7 @@ export default function CommandBar({
                         </code>
                         {selectedElement.textContent && (
                             <span className="text-blue-600 text-xs truncate max-w-[120px]">
-                                "{selectedElement.textContent}"
+                                &quot;{selectedElement.textContent}&quot;
                             </span>
                         )}
                         <button

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { ChatRequest, ChatResponse } from '@/lib/types';
+import { ChatRequest } from '@/lib/types';
 import { MOTION_SYSTEM_PROMPT, TECHNICAL_CONSTRAINTS_PROMPT } from '@/lib/agents/system-prompts';
-import { detectErrors, autoFixErrors, ThoughtStep, ValidationError } from '@/lib/agents/builder';
+import { detectErrors, autoFixErrors, ThoughtStep } from '@/lib/agents/builder';
 
 export const maxDuration = 120; // 2 minutes
 export const dynamic = 'force-dynamic';
@@ -96,7 +96,7 @@ ${userPrompt}
         const lines = reply.split('\n');
         let currentFile: string | null = null;
         let currentContent: string[] = [];
-        let naturalMessageLines: string[] = [];
+        const naturalMessageLines: string[] = [];
 
         for (const line of lines) {
             if (line.trim().startsWith('### FILE:')) {
