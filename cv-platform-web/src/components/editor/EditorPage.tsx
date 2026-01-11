@@ -171,39 +171,7 @@ export default defineConfig({
 };`;
             }
 
-            // Ensure package.json exists
-            if (!formattedFiles['/package.json']) {
-                formattedFiles['/package.json'] = JSON.stringify({
-                    name: "portfolio-project",
-                    version: "0.0.0",
-                    private: true,
-                    type: "module",
-                    scripts: {
-                        "dev": "vite",
-                        "build": "vite build",
-                        "preview": "vite preview"
-                    },
-                    dependencies: {
-                        "react": "^18.3.1",
-                        "react-dom": "^18.3.1",
-                        "framer-motion": "^11.0.0",
-                        "@phosphor-icons/react": "^2.0.0",
-                        "clsx": "^2.0.0",
-                        "tailwind-merge": "^2.0.0",
-                        "lucide-react": "^0.263.0"
-                    },
-                    devDependencies: {
-                        "@types/react": "^18.3.3",
-                        "@types/react-dom": "^18.3.0",
-                        "@vitejs/plugin-react": "^4.3.1",
-                        "autoprefixer": "^10.4.19",
-                        "postcss": "^8.4.38",
-                        "tailwindcss": "^3.4.4",
-                        "typescript": "^5.5.3",
-                        "vite": "^5.4.1"
-                    }
-                }, null, 2);
-            }
+            // package.json is handled by Sandpack customSetup
 
             setSandpackFiles(injectVisualEditing(formattedFiles) as Record<string, string>);
             setIsLoading(false);
@@ -403,7 +371,16 @@ export default defineConfig({
                     "@phosphor-icons/react": "^2.0.0",
                     "clsx": "^2.0.0",
                     "tailwind-merge": "^2.0.0",
-                    "lucide-react": "^0.263.0"
+                    "lucide-react": "^0.263.0",
+                    // Dev dependencies needed for build
+                    "@types/react": "^18.3.3",
+                    "@types/react-dom": "^18.3.0",
+                    "@vitejs/plugin-react": "^4.3.1",
+                    "autoprefixer": "^10.4.19",
+                    "postcss": "^8.4.38",
+                    "tailwindcss": "^3.4.4",
+                    "typescript": "^5.5.3",
+                    "vite": "^5.4.1"
                 }
             }}
         >

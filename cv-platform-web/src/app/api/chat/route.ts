@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 You have full access to the source code. Your job is to EDIT the code based on user requests.
 
 ## CONTEXT
-The site is built with Next.js 14 (Pages Router fallback), Tailwind CSS, and Framer Motion.
+The site is built with React 18 + Vite, Tailwind CSS, and Framer Motion.
 It uses a specific "Motion System" for animations.
 
 ## STRICT RULES
@@ -47,8 +47,9 @@ It uses a specific "Motion System" for animations.
 
 2. **Constraints**:
    - Do NOT break the build.
-   - Do NOT use 'use client' (we are in Pages Router mode for Sandpack).
-   - Do NOT invent new libraries. Use what is installed (Lucide/Phosphor, Framer Motion).
+   - Do NOT use 'use client' (not needed in Vite).
+   - Do NOT use Next.js imports (next/image, next/link, next/router).
+   - Do NOT invent new libraries. Use what is installed (Phosphor Icons, Framer Motion).
    
 ${TECHNICAL_CONSTRAINTS_PROMPT}
 
