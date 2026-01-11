@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { ChatRequest } from '@/lib/types';
-import { MOTION_SYSTEM_PROMPT, TECHNICAL_CONSTRAINTS_PROMPT } from '@/lib/agents/system-prompts';
-import { detectErrors, autoFixErrors, ThoughtStep } from '@/lib/agents/builder';
+import { ChatRequest } from '../../../lib/types';
+import { MOTION_SYSTEM_PROMPT, TECHNICAL_CONSTRAINTS_PROMPT } from '../../../lib/agents/system-prompts';
+import { detectErrors, autoFixErrors, ThoughtStep } from '../../../lib/agents/builder';
 
 export const maxDuration = 120; // 2 minutes
 export const dynamic = 'force-dynamic';
@@ -12,7 +12,7 @@ const openai = new OpenAI({
     baseURL: "https://openrouter.ai/api/v1",
 });
 
-const GEMINI_MODEL = process.env.GEMINI_FLASH_MODEL || "google/gemini-pro";
+const GEMINI_MODEL = process.env.GEMINI_FLASH_MODEL || "google/gemini-3-flash-preview";
 
 export async function POST(request: Request) {
     const thoughtSteps: ThoughtStep[] = [];

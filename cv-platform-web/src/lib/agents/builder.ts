@@ -8,7 +8,7 @@ const openai = new OpenAI({
 });
 
 // Use Pro model for highest quality code generation
-const GEMINI_MODEL = process.env.GEMINI_PRO_MODEL || "google/gemini-pro-1.5";
+const GEMINI_MODEL = process.env.GEMINI_PRO_MODEL || "google/gemini-3-pro-preview";
 
 // ============================================================================
 // TYPES

@@ -15,7 +15,7 @@ const openai = new OpenAI({
 });
 
 // Use Pro model for higher quality specs
-const GEMINI_MODEL = process.env.GEMINI_PRO_MODEL || "google/gemini-2.5-pro-preview-05-06";
+const GEMINI_MODEL = process.env.GEMINI_PRO_MODEL || "google/gemini-3-pro-preview";
 
 // Types
 interface SpecOutput {
