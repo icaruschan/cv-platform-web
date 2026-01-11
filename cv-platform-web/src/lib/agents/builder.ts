@@ -424,7 +424,7 @@ function parseFiles(response: string): GeneratedFile[] {
         if (fileMatch) {
             if (currentFile) {
                 let content = currentContent.join('\n').trim();
-                content = content.replace(/^```tsx?\n?/, '').replace(/```$/, '').trim();
+                content = content.replace(/^```[\w-]*\n?/, '').replace(/```$/, '').trim();
                 files.push({ path: normalizePath(currentFile), content });
             }
             currentFile = fileMatch[1].trim();
@@ -438,7 +438,7 @@ function parseFiles(response: string): GeneratedFile[] {
 
     if (currentFile) {
         let content = currentContent.join('\n').trim();
-        content = content.replace(/^```tsx?\n?/, '').replace(/```$/, '').trim();
+        content = content.replace(/^```[\w-]*\n?/, '').replace(/```$/, '').trim();
         files.push({ path: normalizePath(currentFile), content });
     }
 
