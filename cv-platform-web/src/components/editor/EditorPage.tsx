@@ -372,15 +372,10 @@ export default defineConfig({
                     "clsx": "^2.0.0",
                     "tailwind-merge": "^2.0.0",
                     "lucide-react": "^0.263.0",
-                    // Dev dependencies needed for build
-                    "@types/react": "^18.3.3",
-                    "@types/react-dom": "^18.3.0",
-                    "@vitejs/plugin-react": "^4.3.1",
-                    "autoprefixer": "^10.4.19",
-                    "postcss": "^8.4.38",
+                    // Styling
                     "tailwindcss": "^3.4.4",
-                    "typescript": "^5.5.3",
-                    "vite": "^5.4.1"
+                    "autoprefixer": "^10.4.19",
+                    "postcss": "^8.4.38"
                 }
             }}
         >
