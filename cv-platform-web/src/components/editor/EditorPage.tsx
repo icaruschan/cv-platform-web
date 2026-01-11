@@ -141,7 +141,7 @@ export default defineConfig({
 
             // Ensure Tailwind config exists
             if (!formattedFiles['/tailwind.config.js']) {
-                formattedFiles['/tailwind.config.js'] = `module.exports = {
+                formattedFiles['/tailwind.config.js'] = `export default {
   content: [
     "./src/**/*.{js,ts,jsx,tsx}",
     "./index.html"
@@ -163,7 +163,7 @@ export default defineConfig({
 
             // Ensure PostCSS config exists
             if (!formattedFiles['/postcss.config.js']) {
-                formattedFiles['/postcss.config.js'] = `module.exports = {
+                formattedFiles['/postcss.config.js'] = `export default {
   plugins: {
     tailwindcss: {},
     autoprefixer: {},

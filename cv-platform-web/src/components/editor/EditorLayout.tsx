@@ -81,7 +81,7 @@ export default function EditorLayout({
                 </motion.aside>
 
                 {/* Right Canvas (The Preview) */}
-                <main className="flex-1 bg-[var(--background)] overflow-hidden">
+                <main className="flex-1 bg-[var(--background)] overflow-hidden flex flex-col">
                     {canvas}
                 </main>
             </div>

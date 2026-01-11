@@ -179,8 +179,18 @@ export function injectVisualEditing(
       }
 
       // Patch: Add hook call inside the component
-      const funcRegex = /export\s+default\s+function\s+\w+\s*\([^)]*\)\s*\{/;
-      const funcMatch = funcRegex.exec(patchedCode);
+      // Try multiple patterns to find the start of the component body
+      const patterns = [
+        /export\s+default\s+function\s+\w+\s*\([^)]*\)\s*\{/, // export default function App() {
+        /^function\s+\w+\s*\([^)]*\)\s*\{/m,                   // function App() {
+        /const\s+\w+\s*=\s*\([^)]*\)\s*=>\s*\{/                // const App = () => {
+      ];
+
+      let funcMatch = null;
+      for (const pattern of patterns) {
+        funcMatch = pattern.exec(patchedCode);
+        if (funcMatch) break;
+      }
 
       if (funcMatch) {
         const insertPos = funcMatch.index + funcMatch[0].length;
@@ -188,17 +198,6 @@ export function injectVisualEditing(
           patchedCode.slice(0, insertPos) +
           "\n  useVisualEditing();" +
           patchedCode.slice(insertPos);
-      } else {
-        // Try arrow function pattern if strict function declaration failed
-        const arrowRegex = /const\s+\w+\s*=\s*\([^)]*\)\s*=>\s*\{/;
-        const arrowMatch = arrowRegex.exec(patchedCode);
-        if (arrowMatch) {
-          const insertPos = arrowMatch.index + arrowMatch[0].length;
-          patchedCode =
-            patchedCode.slice(0, insertPos) +
-            "\n  useVisualEditing();" +
-            patchedCode.slice(insertPos);
-        }
       }
 
       result[appPath] = patchedCode;
