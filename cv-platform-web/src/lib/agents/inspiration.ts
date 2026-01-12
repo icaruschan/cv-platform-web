@@ -2,6 +2,14 @@ import OpenAI from 'openai';
 import FirecrawlApp from '@mendable/firecrawl-js';
 import axios from 'axios';
 import { Brief, Moodboard } from '../types';
+import {
+    parseVibeKeywords,
+    hasEnoughKeywords,
+    selectPlatforms,
+    buildPlatformUrl,
+    Platform,
+    KNOWN_KEYWORDS,
+} from '../helpers/platform-urls';
 
 interface FirecrawlScrapeResponse {
     success?: boolean;
@@ -12,21 +20,22 @@ interface FirecrawlScrapeResponse {
 }
 
 // --- Configuration ---
-const PLATFORMS = [
-    // Gallery sites - need URL resolution to get real site
+// Platform types for direct scraping
+const PLATFORM_CONFIG: Record<Platform, { type: 'template' | 'gallery' }> = {
+    framer: { type: 'template' },
+    webflow: { type: 'template' },
+    awwwards: { type: 'gallery' },
+    godly: { type: 'gallery' },
+    lapa: { type: 'gallery' },
+};
+
+// Legacy platforms for Tavily fallback
+const LEGACY_PLATFORMS = [
     { name: 'Awwwards', site: 'awwwards.com', type: 'gallery' },
     { name: 'Godly', site: 'godly.website', type: 'gallery' },
-    { name: 'SiteInspire', site: 'siteinspire.com', type: 'gallery' },
     { name: 'Lapa Ninja', site: 'lapa.ninja', type: 'gallery' },
-    { name: 'LandingFolio', site: 'landingfolio.com', type: 'gallery' },
-
-    // Template sites - need to extract preview URL
     { name: 'Framer', site: 'framer.com/templates', type: 'template' },
     { name: 'Webflow', site: 'webflow.com/templates', type: 'template' },
-
-    // Visual only - no live site, just screenshot for ideas
-    { name: 'Dribbble', site: 'dribbble.com', type: 'visual_only' },
-    { name: 'Behance', site: 'behance.net', type: 'visual_only' },
 ];
 
 // Domains to filter out when finding external links
@@ -123,37 +132,223 @@ export async function generateMoodboard(brief: Brief): Promise<Moodboard> {
     console.log(`🎨 Starting Inspiration Agent for: ${brief.style.vibe}`);
 
     try {
-        // Step 0: Condense Vibe for Search
-        const searchVibe = await extractSearchVibe(brief.style.vibe);
-        console.log(`   🔍 Search Vibe: "${searchVibe}"`);
+        // Step 0: Parse Vibe (keyword-first, LLM fallback)
+        const vibeKeywords = await extractVibeKeywords(brief.style.vibe);
+        console.log(`   🎯 Vibe Keywords: [${vibeKeywords.join(', ')}]`);
 
-        // Step 1: Search Platforms
-        const sources = await searchDesignInspiration(searchVibe);
+        // Step 1: Get Sources via Direct Platform Scraping (with Tavily fallback)
+        const sources = await getInspirationSources(vibeKeywords, brief.style.vibe);
         if (sources.length === 0) {
             console.warn("⚠️ No inspiration sources found. Using fallback.");
-            return createFallbackMoodboard(brief.style.vibe, "No inspiration sources found from search");
+            return createFallbackMoodboard(brief.style.vibe, "No inspiration sources found");
         }
 
-        // Step 2: Resolve Gallery URLs to Real Sites
-        const resolvedSources = await resolveGalleryUrls(sources);
-
-        // Step 3: Extract Hybrid Data (Branding + Screenshots)
-        const extractedData = await extractHybridData(resolvedSources);
+        // Step 2: Extract Hybrid Data (Branding + Screenshots)
+        const extractedData = await extractHybridData(sources);
         if (extractedData.length === 0) {
             console.warn("⚠️ No data could be extracted. Using fallback.");
             return createFallbackMoodboard(brief.style.vibe, "Data extraction failed");
         }
 
-        // Step 4: Vision Analysis
-        const visionAnalysis = await analyzeVisualPatterns(extractedData, searchVibe);
+        // Step 3: Vision Analysis
+        const visionAnalysis = await analyzeVisualPatterns(extractedData, vibeKeywords.join(' '));
 
-        // Step 5: Synthesize to Object
-        return synthesizeMoodboardObject(extractedData, visionAnalysis, searchVibe);
+        // Step 4: Synthesize to Object
+        return synthesizeMoodboardObject(extractedData, visionAnalysis, vibeKeywords.join(' '));
 
     } catch (error: unknown) {
         console.error(`❌ Inspiration engine error: ${error instanceof Error ? error.message : String(error)}`);
         return createFallbackMoodboard(brief.style.vibe, String(error));
     }
+}
+
+// ============================================================================
+// STEP 0: EXTRACT VIBE KEYWORDS (Hybrid: Keyword-first → LLM fallback)
+// ============================================================================
+
+async function extractVibeKeywords(fullVibe: string): Promise<string[]> {
+    console.log(`   🔍 Parsing vibe: "${fullVibe.substring(0, 50)}${fullVibe.length > 50 ? '...' : ''}"`);
+
+    // Step 1: Try direct keyword matching (free, instant)
+    const directMatches = parseVibeKeywords(fullVibe);
+
+    if (hasEnoughKeywords(directMatches)) {
+        console.log(`   ✅ Keywords matched directly: [${directMatches.join(', ')}]`);
+        return directMatches;
+    }
+
+    // Step 2: Vague vibe - use LLM to extract keywords
+    console.log(`   🔄 Vague vibe, using LLM extraction...`);
+
+    try {
+        const response = await openai.chat.completions.create({
+            model: GEMINI_MODEL,
+            messages: [
+                {
+                    role: "system",
+                    content: `You extract design style keywords from descriptions.
+                    
+Available keywords: ${KNOWN_KEYWORDS.join(', ')}
+
+Return 2-4 keywords from this list that best match the vibe. 
+Output ONLY a comma-separated list, nothing else.
+Example: "dark, minimal, modern"`
+                },
+                { role: "user", content: fullVibe }
+            ],
+            max_tokens: 50,
+            temperature: 0.3
+        });
+
+        const llmOutput = response.choices[0].message.content?.trim() || '';
+        const extracted = llmOutput.split(',').map(k => k.trim().toLowerCase()).filter(k => KNOWN_KEYWORDS.includes(k));
+
+        if (extracted.length >= 2) {
+            console.log(`   ✅ Keywords extracted via LLM: [${extracted.join(', ')}]`);
+            return extracted;
+        }
+    } catch (error) {
+        console.warn(`   ⚠️ LLM extraction failed: ${error instanceof Error ? error.message : error}`);
+    }
+
+    // Fallback: default keywords
+    console.log(`   ⚠️ Using default keywords: [dark, modern]`);
+    return ['dark', 'modern'];
+}
+
+// ============================================================================
+// STEP 1: GET INSPIRATION SOURCES (Direct Scraping → Tavily Fallback)
+// ============================================================================
+
+interface PlatformCard {
+    platform: Platform;
+    name: string;
+    targetUrl: string;
+    thumbnailUrl?: string;
+}
+
+async function getInspirationSources(vibeKeywords: string[], rawVibe: string): Promise<ResolvedSource[]> {
+    try {
+        // Primary: Direct platform scraping
+        console.log(`   🎯 Using direct platform scraping...`);
+        return await scrapeFilteredPlatforms(vibeKeywords);
+    } catch (error) {
+        console.warn(`   ⚠️ Direct scraping failed: ${error instanceof Error ? error.message : error}`);
+        console.log(`   🔄 Falling back to Tavily search...`);
+
+        // Fallback: Legacy Tavily search
+        const sources = await searchDesignInspirationFallback(rawVibe);
+        return await resolveGalleryUrls(sources);
+    }
+}
+
+async function scrapeFilteredPlatforms(vibeKeywords: string[]): Promise<ResolvedSource[]> {
+    // Select 3 platforms: 1 template + 2 galleries
+    const platforms = selectPlatforms();
+    console.log(`   📋 Selected platforms: [${platforms.join(', ')}]`);
+
+    const results: ResolvedSource[] = [];
+
+    for (const platform of platforms) {
+        const listUrl = buildPlatformUrl(platform, vibeKeywords);
+        console.log(`   🔗 ${platform}: ${listUrl.substring(0, 80)}...`);
+
+        try {
+            // Add delay to avoid rate limiting
+            await delay(FIRECRAWL_DELAY_MS);
+
+            // Scrape the list page
+            const cards = await scrapeListPage(platform, listUrl);
+            console.log(`   📦 ${platform}: Found ${cards.length} cards`);
+
+            // Take first 1-2 cards from each platform
+            const selectedCards = cards.slice(0, 2);
+
+            for (const card of selectedCards) {
+                const config = PLATFORM_CONFIG[platform];
+                results.push({
+                    platform: platform,
+                    url: card.targetUrl,
+                    type: config.type,
+                    resolvedUrl: card.targetUrl,
+                    canBrand: true,
+                });
+            }
+        } catch (error) {
+            console.warn(`   ⚠️ ${platform}: Scrape failed - ${error instanceof Error ? error.message : error}`);
+        }
+    }
+
+    console.log(`   ✅ Total sources from direct scraping: ${results.length}`);
+    return results;
+}
+
+async function scrapeListPage(platform: Platform, listUrl: string): Promise<PlatformCard[]> {
+    const result = await getFirecrawl().scrape(listUrl, {
+        formats: ['html', 'links'] as unknown as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+        waitFor: 2000,
+    }) as unknown as FirecrawlScrapeResponse & { html?: string };
+
+    const links = result?.links || result?.data?.links || [];
+    const cards: PlatformCard[] = [];
+
+    switch (platform) {
+        case 'framer':
+            // Extract .framer.website links
+            for (const link of links) {
+                if (link.includes('.framer.website') && !link.includes('framer.com')) {
+                    cards.push({ platform, name: link.split('.')[0].replace('https://', ''), targetUrl: link });
+                }
+            }
+            // Also try to extract from template URLs
+            for (const link of links) {
+                const match = link.match(/framer\.com\/marketplace\/templates\/([a-zA-Z0-9-]+)/);
+                if (match) {
+                    const slug = match[1].toLowerCase();
+                    cards.push({ platform, name: slug, targetUrl: `https://${slug}.framer.website` });
+                }
+            }
+            break;
+
+        case 'webflow':
+            // Extract .webflow.io links
+            for (const link of links) {
+                if (link.includes('.webflow.io')) {
+                    cards.push({ platform, name: link.split('.')[0].replace('https://', ''), targetUrl: link });
+                }
+            }
+            // Also try to extract from template URLs
+            for (const link of links) {
+                const match = link.match(/webflow\.com\/templates\/html\/([a-zA-Z0-9-]+)/);
+                if (match) {
+                    const slug = match[1].toLowerCase().replace('-website-template', '');
+                    cards.push({ platform, name: slug, targetUrl: `https://${slug}.webflow.io` });
+                }
+            }
+            break;
+
+        case 'awwwards':
+        case 'godly':
+        case 'lapa':
+            // These link to real external sites
+            const externalLinks = links.filter((link: string) => {
+                if (!link || !link.startsWith('http')) return false;
+                // Filter out internal/social links
+                return !INTERNAL_DOMAINS.some(domain => link.includes(domain));
+            });
+            for (const link of externalLinks.slice(0, 5)) {
+                cards.push({ platform, name: new URL(link).hostname, targetUrl: link });
+            }
+            break;
+    }
+
+    // Dedupe by targetUrl
+    const seen = new Set<string>();
+    return cards.filter(card => {
+        if (seen.has(card.targetUrl)) return false;
+        seen.add(card.targetUrl);
+        return true;
+    });
 }
 
 // ============================================================================
@@ -215,15 +410,15 @@ async function extractSearchVibe(fullVibe: string): Promise<string> {
 }
 
 // ============================================================================
-// STEP 1: SEARCH DESIGN INSPIRATION
+// TAVILY FALLBACK: SEARCH DESIGN INSPIRATION
 // ============================================================================
 
-async function searchDesignInspiration(vibe: string): Promise<Source[]> {
-    console.log(`   🔍 Searching for: "${vibe}" across ${PLATFORMS.length} platforms...`);
+async function searchDesignInspirationFallback(vibe: string): Promise<Source[]> {
+    console.log(`   🔍 [Fallback] Searching via Tavily for: "${vibe}" across ${LEGACY_PLATFORMS.length} platforms...`);
 
     const sources: Source[] = [];
 
-    for (const platform of PLATFORMS) {
+    for (const platform of LEGACY_PLATFORMS) {
         // Use the vibe directly without appending "website design"
         const query = `${vibe} site:${platform.site}`;
 
@@ -426,47 +621,25 @@ async function extractHybridData(sources: ResolvedSource[]): Promise<ExtractedDa
             if (source.canBrand) {
                 console.log(`      🎨 ${source.platform}: Extracting branding...`);
                 try {
-                    // Use LLM extraction with a schema for branding data
-                    const brandingResult = await getFirecrawl().scrape(source.resolvedUrl, {
-                        formats: [
-                            'markdown',
-                            {
-                                type: 'json',
-                                schema: {
-                                    type: 'object',
-                                    properties: {
-                                        colors: {
-                                            type: 'object',
-                                            properties: {
-                                                primary: { type: 'string' },
-                                                secondary: { type: 'string' },
-                                                accent: { type: 'string' },
-                                                background: { type: 'string' },
-                                                text: { type: 'string' }
-                                            }
-                                        },
-                                        fonts: {
-                                            type: 'object',
-                                            properties: {
-                                                heading: { type: 'string' },
-                                                body: { type: 'string' }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        ] as unknown as any // eslint-disable-line @typescript-eslint/no-explicit-any
-                    }) as unknown as { success: boolean; json?: { colors?: Record<string, string>; fonts?: { heading?: string; body?: string } } };
+                    // Add delay before branding extraction
+                    await delay(FIRECRAWL_DELAY_MS);
 
-                    if (brandingResult.success && brandingResult.json) {
-                        data.branding = {
-                            colors: brandingResult.json.colors,
-                            typography: {
-                                headingFont: brandingResult.json.fonts?.heading,
-                                bodyFont: brandingResult.json.fonts?.body
-                            }
-                        };
-                        console.log(`      ✅ ${source.platform}: Branding extracted`);
+                    // Use native Firecrawl branding format (returns full CSS properties)
+                    const brandingResult = await getFirecrawl().scrape(source.resolvedUrl, {
+                        formats: ['branding'] as unknown as any // eslint-disable-line @typescript-eslint/no-explicit-any
+                    }) as unknown as { success: boolean; branding?: BrandingData };
+
+                    if (brandingResult.success && brandingResult.branding) {
+                        data.branding = brandingResult.branding;
+                        console.log(`      ✅ ${source.platform}: Full branding extracted`);
+
+                        // Log what we got
+                        const b = brandingResult.branding;
+                        console.log(`         - Colors: ${b.colors ? Object.keys(b.colors).length : 0}`);
+                        console.log(`         - Spacing: ${b.spacing ? Object.keys(b.spacing).length : 0}`);
+                        console.log(`         - Animations: ${b.animations ? Object.keys(b.animations).length : 0}`);
+                        console.log(`         - Components: ${b.components ? 'yes' : 'no'}`);
+                        console.log(`         - Personality: ${b.personality ? 'yes' : 'no'}`);
                     }
                 } catch {
                     console.warn(`      ⚠️ ${source.platform}: Branding extraction failed`);
@@ -560,12 +733,20 @@ Return in this format:
 function synthesizeMoodboardObject(sources: ExtractedData[], analysis: string | null, vibe: string): Moodboard {
     console.log(`   📝 Synthesizing final moodboard...`);
 
-    // Collect colors from all sources
+    // Collect all branding data from sources
     const colors = collectColors(sources);
     const typography = collectTypography(sources);
+    const spacing = collectSpacing(sources);
+    const animations = collectAnimations(sources);
+    const components = collectComponents(sources);
+    const personality = collectPersonality(sources);
+
+    // Log what we collected
+    console.log(`   📊 Collected: ${Object.keys(colors).length} colors, ${typography.heading ? 'custom fonts' : 'default fonts'}`);
+    console.log(`   📊 Extras: ${Object.keys(spacing).length} spacing tokens, ${animations.length} animations, ${components.length} components`);
 
     // Build the moodboard with real data
-    return {
+    const moodboard: Moodboard = {
         visual_direction: analysis || `Clean, modern design inspired by ${vibe}`,
         color_palette: {
             primary: colors.primary || "#000000",
@@ -578,7 +759,9 @@ function synthesizeMoodboardObject(sources: ExtractedData[], analysis: string | 
         typography: {
             heading_font: typography.heading || "Inter",
             body_font: typography.body || "Inter",
-            mono_font: "JetBrains Mono"
+            mono_font: "JetBrains Mono",
+            font_sizes: typography.fontSizes,
+            font_weights: typography.fontWeights
         },
         ui_patterns: {
             card_style: "clean borders",
@@ -590,6 +773,22 @@ function synthesizeMoodboardObject(sources: ExtractedData[], analysis: string | 
             description: "Smooth, elegant transitions"
         }
     };
+
+    // Add optional extended data if collected
+    if (Object.keys(spacing).length > 0) {
+        moodboard.spacing = spacing;
+    }
+    if (animations.length > 0) {
+        moodboard.animations = animations;
+    }
+    if (components.length > 0) {
+        moodboard.components = components;
+    }
+    if (personality) {
+        moodboard.personality = personality;
+    }
+
+    return moodboard;
 }
 
 // ============================================================================
@@ -621,20 +820,106 @@ function collectColors(sources: ExtractedData[]): Record<string, string> {
 /**
  * Collect typography from branding sources
  */
-function collectTypography(sources: ExtractedData[]): { heading?: string; body?: string } {
+function collectTypography(sources: ExtractedData[]): { heading?: string; body?: string; fontSizes?: Record<string, string>; fontWeights?: number[] } {
     for (const source of sources) {
         if (!source.branding?.typography) continue;
 
         const typo = source.branding.typography;
-        if (typo.headingFont || typo.bodyFont) {
+        if (typo.headingFont || typo.bodyFont || typo.fontFamilies?.primary) {
             return {
-                heading: typo.headingFont,
-                body: typo.bodyFont
+                heading: typo.headingFont || typo.fontFamilies?.heading || typo.fontFamilies?.primary,
+                body: typo.bodyFont || typo.fontFamilies?.primary,
+                fontSizes: typo.fontSizes,
+                fontWeights: typo.fontWeights ? Object.values(typo.fontWeights) : undefined
             };
         }
     }
 
     return {};
+}
+
+/**
+ * Collect spacing tokens from branding sources
+ */
+function collectSpacing(sources: ExtractedData[]): Record<string, string> {
+    const result: Record<string, string> = {};
+    const seen = new Set<string>();
+
+    for (const source of sources) {
+        if (!source.branding?.spacing) continue;
+
+        for (const [name, value] of Object.entries(source.branding.spacing)) {
+            if (value && !seen.has(name)) {
+                seen.add(name);
+                result[name] = value;
+            }
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Collect animations from branding sources (CSS transitions/keyframes)
+ */
+function collectAnimations(sources: ExtractedData[]): { name: string; value: string }[] {
+    const result: { name: string; value: string }[] = [];
+    const seen = new Set<string>();
+
+    for (const source of sources) {
+        if (!source.branding?.animations) continue;
+
+        for (const [name, value] of Object.entries(source.branding.animations)) {
+            if (value && !seen.has(name)) {
+                seen.add(name);
+                const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+                result.push({ name, value: displayValue });
+            }
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Collect component styles (buttons, inputs) from branding sources
+ */
+function collectComponents(sources: ExtractedData[]): { name: string; styles: Record<string, string> }[] {
+    const result: { name: string; styles: Record<string, string> }[] = [];
+
+    for (const source of sources) {
+        if (!source.branding?.components) continue;
+
+        const comp = source.branding.components;
+
+        if (comp.buttonPrimary && result.length === 0) {
+            result.push({ name: 'Primary Button', styles: comp.buttonPrimary });
+        }
+        if (comp.buttonSecondary) {
+            result.push({ name: 'Secondary Button', styles: comp.buttonSecondary });
+        }
+        if (comp.input) {
+            result.push({ name: 'Input Field', styles: comp.input });
+        }
+    }
+
+    return result.slice(0, 3);
+}
+
+/**
+ * Collect brand personality from branding sources
+ */
+function collectPersonality(sources: ExtractedData[]): { tone?: string; energy?: string; targetAudience?: string; description?: string } | null {
+    for (const source of sources) {
+        if (!source.branding?.personality) continue;
+
+        const p = source.branding.personality;
+        if (p.tone || p.energy || p.description) {
+            return p;
+        }
+    }
+
+    return null;
 }
 
 // ============================================================================

@@ -57,6 +57,8 @@ export interface Moodboard {
         heading_font: string;
         body_font: string;
         mono_font: string;
+        font_sizes?: Record<string, string>;  // NEW: from Firecrawl branding
+        font_weights?: number[];              // NEW: from Firecrawl branding
     };
     ui_patterns: {
         card_style: string;
@@ -66,6 +68,16 @@ export interface Moodboard {
     motion: {
         profile: 'STUDIO' | 'TECH'; // From Motion System
         description: string;
+    };
+    // NEW: Extended fields from Firecrawl branding extraction
+    spacing?: Record<string, string>;                    // CSS spacing tokens
+    animations?: { name: string; value: string }[];      // CSS transitions/keyframes
+    components?: { name: string; styles: Record<string, string> }[]; // Button/input styles
+    personality?: {                                      // Brand personality
+        tone?: string;
+        energy?: string;
+        targetAudience?: string;
+        description?: string;
     };
 }
 

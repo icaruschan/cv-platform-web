@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { Brief, Moodboard } from '../types';
-import { MOTION_SYSTEM_PROMPT } from './system-prompts';
+import { MOTION_SYSTEM_PROMPT, TECHNICAL_CONSTRAINTS_PROMPT } from './system-prompts';
+import { getProfileImageUrl, getSocialLinks, formatProjectsWithImages } from '../helpers/brief-parser';
 
 const openai = new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY,
@@ -90,19 +91,13 @@ export async function generateSite(
             }).join('\n');
         }
 
+        // Extract social links and profile data using brief-parser helpers
+        const socialLinks = getSocialLinks(brief);
+        const profileImageUrl = getProfileImageUrl(brief);
 
-        // Extract social links and profile data
-        const socialLinks = extractSocialLinks(brief);
-        const profileImageUrl = brief.personal.avatar_url || 'https://via.placeholder.com/400';
-
-        // Format work experience for prompt
-        const projectsJson = JSON.stringify(brief.work.map(p => ({
-            name: p.title,
-            role: p.role,
-            description: p.description,
-            impact: p.impact || '',
-            link: p.link || ''
-        })), null, 2);
+        // Format work experience with project images using brief-parser helper
+        const formattedProjects = formatProjectsWithImages(brief);
+        const projectsJson = JSON.stringify(formattedProjects, null, 2);
 
         // Build the comprehensive system prompt
         const systemPrompt = buildSystemPrompt(

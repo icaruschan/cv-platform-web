@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { matchVibe } from '@/lib/vibes';
+import { generateMoodboard } from '@/lib/agents/inspiration';
 import { generateSpecs } from '@/lib/agents/spec';
 import { generateSite } from '@/lib/agents/builder';
 import { Brief } from '@/lib/types';
@@ -46,9 +46,9 @@ export async function POST(request: Request) {
 
         console.log(`🏗️ Background Processor V2: Starting for project ${projectId}`);
 
-        // Stage 1: Vibe Matching (INSTANT - no LLM call!)
-        await updateProjectStatus(projectId, 'inspiration', 'Matching your design vibe...');
-        const moodboard = matchVibe(brief); // Instant lookup, no API call
+        // Stage 1: Inspiration Agent (Full Pipeline with web scraping + vision analysis)
+        await updateProjectStatus(projectId, 'inspiration', 'Gathering design inspiration...');
+        const moodboard = await generateMoodboard(brief); // Full Tavily + Firecrawl + Vision pipeline
 
         // Save moodboard to project
         await supabase
