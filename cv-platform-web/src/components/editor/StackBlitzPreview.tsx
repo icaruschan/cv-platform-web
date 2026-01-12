@@ -64,7 +64,7 @@ export default defineConfig({
 })`;
         }
 
-        // Ensure index.html exists
+        // Ensure index.html exists AND has Tailwind CDN
         if (!projectFiles['index.html']) {
             projectFiles['index.html'] = `<!doctype html>
 <html lang="en">
@@ -82,6 +82,30 @@ export default defineConfig({
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>`;
+        } else {
+            // Always inject Tailwind CDN if not present
+            let html = projectFiles['index.html'];
+
+            // Inject Tailwind CDN if not present
+            if (!html.includes('cdn.tailwindcss.com')) {
+                html = html.replace(
+                    '</head>',
+                    '    <script src="https://cdn.tailwindcss.com"></script>\n  </head>'
+                );
+            }
+
+            // Inject Inter font if not present
+            if (!html.includes('fonts.googleapis.com') || !html.includes('Inter')) {
+                html = html.replace(
+                    '</head>',
+                    `    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  </head>`
+                );
+            }
+
+            projectFiles['index.html'] = html;
         }
 
         // Ensure main.tsx exists
