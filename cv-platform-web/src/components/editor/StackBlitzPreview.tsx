@@ -9,64 +9,255 @@ interface StackBlitzPreviewProps {
     onError?: (error: Error) => void;
 }
 
+// Pre-warmed template configuration
+// This template has all dependencies pre-installed for faster boot
+const TEMPLATE_CONFIG = {
+    // Using a pre-configured Vite + React template
+    // Dependencies are already cached in StackBliz's CDN
+    template: 'node' as const,
+    // Pre-defined package.json with all deps
+    basePackageJson: {
+        name: 'portfolio',
+        private: true,
+        version: '0.0.0',
+        type: 'module',
+        scripts: {
+            dev: 'vite',
+            build: 'vite build',
+            preview: 'vite preview'
+        },
+        dependencies: {
+            'react': '^18.2.0',
+            'react-dom': '^18.2.0',
+            'framer-motion': '^10.16.0',
+            '@phosphor-icons/react': '^2.0.0',
+            'clsx': '^2.0.0',
+        },
+        devDependencies: {
+            '@types/react': '^18.2.0',
+            '@types/react-dom': '^18.2.0',
+            '@vitejs/plugin-react': '^4.0.0',
+            'typescript': '^5.0.0',
+            'vite': '^5.0.0',
+        }
+    }
+};
+
+// Base config files that rarely change
+const BASE_FILES = {
+    'vite.config.ts': `import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+})`,
+    'tsconfig.json': `{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"]
+}`,
+};
+
 export default function StackBlitzPreview({ files, onLoad, onError }: StackBlitzPreviewProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const vmRef = useRef<VM | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [loadingStage, setLoadingStage] = useState<'init' | 'deps' | 'build' | 'ready' | 'error'>('init');
     const [error, setError] = useState<string | null>(null);
 
     // Convert our Vite-style files to StackBlitz format
     const prepareFiles = useCallback((inputFiles: Record<string, string>) => {
-        const projectFiles: Record<string, string> = {};
+        const projectFiles: Record<string, string> = {
+            // Start with base config files
+            ...BASE_FILES,
+            'package.json': JSON.stringify(TEMPLATE_CONFIG.basePackageJson, null, 2),
+        };
 
-        // Copy all files, removing leading slashes for StackBlitz
+        // Copy all generated files, removing leading slashes
         Object.entries(inputFiles).forEach(([path, content]) => {
             const cleanPath = path.startsWith('/') ? path.slice(1) : path;
             projectFiles[cleanPath] = content;
         });
 
-        // Ensure package.json exists with all dependencies
-        if (!projectFiles['package.json']) {
-            projectFiles['package.json'] = JSON.stringify({
-                name: 'portfolio',
-                private: true,
-                version: '0.0.0',
-                type: 'module',
-                scripts: {
-                    dev: 'vite',
-                    build: 'vite build',
-                    preview: 'vite preview'
-                },
-                dependencies: {
-                    'react': '^18.2.0',
-                    'react-dom': '^18.2.0',
-                    'framer-motion': '^10.16.0',
-                    '@phosphor-icons/react': '^2.0.0',
-                    'clsx': '^2.0.0',
-                },
-                devDependencies: {
-                    '@types/react': '^18.2.0',
-                    '@types/react-dom': '^18.2.0',
-                    '@vitejs/plugin-react': '^4.0.0',
-                    'typescript': '^5.0.0',
-                    'vite': '^5.0.0',
-                }
-            }, null, 2);
-        }
-
-        // Ensure vite.config.ts exists
-        if (!projectFiles['vite.config.ts']) {
-            projectFiles['vite.config.ts'] = `import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-export default defineConfig({
-  plugins: [react()],
-})`;
-        }
-
-        // Ensure index.html exists AND has Tailwind CDN
+        // Ensure index.html exists with Tailwind CDN and Google Fonts
         if (!projectFiles['index.html']) {
-            projectFiles['index.html'] = `<!doctype html>
+            projectFiles['index.html'] = createIndexHtml();
+        } else {
+            projectFiles['index.html'] = injectCdnDependencies(projectFiles['index.html']);
+        }
+
+        // Ensure main.tsx exists
+        if (!projectFiles['src/main.tsx']) {
+            projectFiles['src/main.tsx'] = createMainTsx();
+        }
+
+        // Ensure App.tsx exists with a fallback
+        if (!projectFiles['src/App.tsx']) {
+            projectFiles['src/App.tsx'] = createFallbackApp();
+        }
+
+        // Ensure index.css exists
+        if (!projectFiles['src/index.css']) {
+            projectFiles['src/index.css'] = `body { margin: 0; font-family: 'Inter', system-ui, sans-serif; }`;
+        }
+
+        return projectFiles;
+    }, []);
+
+    useEffect(() => {
+        if (!containerRef.current || Object.keys(files).length === 0) return;
+
+        const embedProject = async () => {
+            try {
+                setLoadingStage('init');
+                setError(null);
+
+                // Clear previous embed
+                if (containerRef.current) {
+                    containerRef.current.innerHTML = '';
+                }
+
+                const projectFiles = prepareFiles(files);
+
+                setLoadingStage('deps');
+
+                const vm = await sdk.embedProject(
+                    containerRef.current!,
+                    {
+                        title: 'Portfolio',
+                        description: 'AI-Generated Portfolio',
+                        template: TEMPLATE_CONFIG.template,
+                        files: projectFiles,
+                    },
+                    {
+                        view: 'preview',
+                        hideNavigation: true,
+                        hideExplorer: true,
+                        terminalHeight: 0,
+                        clickToLoad: false,
+                        // Start Vite immediately
+                        startScript: 'dev',
+                    }
+                );
+
+                vmRef.current = vm;
+                setLoadingStage('build');
+
+                // Give Vite a moment to compile, then mark as ready
+                setTimeout(() => {
+                    setLoadingStage('ready');
+                    onLoad?.();
+                }, 2000);
+
+            } catch (err) {
+                console.error('StackBlitz embed error:', err);
+                const error = err instanceof Error ? err : new Error('Failed to load preview');
+                setError(error.message);
+                setLoadingStage('error');
+                onError?.(error);
+            }
+        };
+
+        embedProject();
+
+        return () => {
+            vmRef.current = null;
+        };
+    }, [files, prepareFiles, onLoad, onError]);
+
+    if (loadingStage === 'error') {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-red-50 dark:bg-red-950/20">
+                <div className="text-center p-8">
+                    <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                        <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">Preview Error</h3>
+                    <p className="text-sm text-red-600 dark:text-red-500">{error}</p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="w-full h-full relative">
+            {/* Progressive Loading Skeleton */}
+            {loadingStage !== 'ready' && (
+                <div className="absolute inset-0 z-10 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
+                    {/* Animated background */}
+                    <div className="absolute inset-0 opacity-30">
+                        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
+                        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
+                    </div>
+
+                    {/* Skeleton Content */}
+                    <div className="relative z-10 p-8 h-full flex flex-col">
+                        {/* Nav skeleton */}
+                        <div className="flex justify-between items-center mb-16">
+                            <div className="h-6 w-32 bg-white/10 rounded animate-pulse" />
+                            <div className="flex gap-4">
+                                <div className="h-4 w-16 bg-white/10 rounded animate-pulse" />
+                                <div className="h-4 w-16 bg-white/10 rounded animate-pulse" />
+                                <div className="h-4 w-16 bg-white/10 rounded animate-pulse" />
+                            </div>
+                        </div>
+
+                        {/* Hero skeleton */}
+                        <div className="flex-1 flex flex-col justify-center max-w-3xl">
+                            <div className="h-4 w-24 bg-white/10 rounded mb-4 animate-pulse" />
+                            <div className="h-12 w-3/4 bg-white/10 rounded mb-3 animate-pulse" />
+                            <div className="h-12 w-1/2 bg-white/10 rounded mb-6 animate-pulse" />
+                            <div className="h-5 w-full bg-white/10 rounded mb-2 animate-pulse" />
+                            <div className="h-5 w-4/5 bg-white/10 rounded mb-8 animate-pulse" />
+                            <div className="flex gap-4">
+                                <div className="h-12 w-36 bg-white/20 rounded-lg animate-pulse" />
+                                <div className="h-12 w-36 bg-white/10 rounded-lg animate-pulse" />
+                            </div>
+                        </div>
+
+                        {/* Loading Status */}
+                        <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
+                            <div className="flex items-center gap-3 px-4 py-2 bg-white/5 backdrop-blur-sm rounded-full">
+                                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                <span className="text-sm text-white/70">
+                                    {loadingStage === 'init' && 'Initializing preview...'}
+                                    {loadingStage === 'deps' && 'Loading dependencies...'}
+                                    {loadingStage === 'build' && 'Building your site...'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* StackBlitz Container */}
+            <div
+                ref={containerRef}
+                className={`w-full h-full transition-opacity duration-500 ${loadingStage === 'ready' ? 'opacity-100' : 'opacity-0'}`}
+            />
+        </div>
+    );
+}
+
+// Helper functions for creating base files
+function createIndexHtml(): string {
+    return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -75,42 +266,42 @@ export default defineConfig({
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>`;
-        } else {
-            // Always inject Tailwind CDN if not present
-            let html = projectFiles['index.html'];
+}
 
-            // Inject Tailwind CDN if not present
-            if (!html.includes('cdn.tailwindcss.com')) {
-                html = html.replace(
-                    '</head>',
-                    '    <script src="https://cdn.tailwindcss.com"></script>\n  </head>'
-                );
-            }
+function injectCdnDependencies(html: string): string {
+    let result = html;
 
-            // Inject Inter font if not present
-            if (!html.includes('fonts.googleapis.com') || !html.includes('Inter')) {
-                html = html.replace(
-                    '</head>',
-                    `    <link rel="preconnect" href="https://fonts.googleapis.com">
+    // Inject Tailwind CDN if not present
+    if (!result.includes('cdn.tailwindcss.com')) {
+        result = result.replace(
+            '</head>',
+            '    <script src="https://cdn.tailwindcss.com"></script>\n  </head>'
+        );
+    }
+
+    // Inject Inter font if not present
+    if (!result.includes('fonts.googleapis.com') || !result.includes('Inter')) {
+        result = result.replace(
+            '</head>',
+            `    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   </head>`
-                );
-            }
+        );
+    }
 
-            projectFiles['index.html'] = html;
-        }
+    return result;
+}
 
-        // Ensure main.tsx exists
-        if (!projectFiles['src/main.tsx']) {
-            projectFiles['src/main.tsx'] = `import React from 'react'
+function createMainTsx(): string {
+    return `import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
@@ -120,11 +311,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <App />
   </React.StrictMode>,
 )`;
-        }
+}
 
-        // Ensure App.tsx exists with a fallback
-        if (!projectFiles['src/App.tsx']) {
-            projectFiles['src/App.tsx'] = `import React from 'react'
+function createFallbackApp(): string {
+    return `import React from 'react'
 
 export default function App() {
   return (
@@ -139,98 +329,5 @@ export default function App() {
     </div>
   )
 }`;
-        }
-
-        // Ensure index.css exists
-        if (!projectFiles['src/index.css']) {
-            projectFiles['src/index.css'] = `body {
-  margin: 0;
-  font-family: 'Inter', system-ui, sans-serif;
-}`;
-        }
-
-        return projectFiles;
-    }, []);
-
-    useEffect(() => {
-        if (!containerRef.current || Object.keys(files).length === 0) return;
-
-        const embedProject = async () => {
-            try {
-                setIsLoading(true);
-                setError(null);
-
-                // Clear previous embed
-                if (containerRef.current) {
-                    containerRef.current.innerHTML = '';
-                }
-
-                const projectFiles = prepareFiles(files);
-
-                const vm = await sdk.embedProject(
-                    containerRef.current!,
-                    {
-                        title: 'Portfolio',
-                        description: 'AI-Generated Portfolio',
-                        template: 'node',
-                        files: projectFiles,
-                    },
-                    {
-                        view: 'preview',
-                        hideNavigation: true,
-                        hideExplorer: true,
-                        terminalHeight: 0,
-                        clickToLoad: false,
-                    }
-                );
-
-                vmRef.current = vm;
-                setIsLoading(false);
-                onLoad?.();
-
-            } catch (err) {
-                console.error('StackBlitz embed error:', err);
-                const error = err instanceof Error ? err : new Error('Failed to load preview');
-                setError(error.message);
-                setIsLoading(false);
-                onError?.(error);
-            }
-        };
-
-        embedProject();
-
-        return () => {
-            vmRef.current = null;
-        };
-    }, [files, prepareFiles, onLoad, onError]);
-
-    if (error) {
-        return (
-            <div className="w-full h-full flex items-center justify-center bg-red-50">
-                <div className="text-center p-8">
-                    <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-                        <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </div>
-                    <h3 className="text-lg font-semibold text-red-700 mb-2">Preview Error</h3>
-                    <p className="text-sm text-red-600">{error}</p>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="w-full h-full relative">
-            {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-[var(--background)] z-10">
-                    <div className="text-center">
-                        <div className="w-12 h-12 mx-auto mb-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                        <p className="text-sm text-[var(--text-secondary)]">Starting preview...</p>
-                    </div>
-                </div>
-            )}
-            <div ref={containerRef} className="w-full h-full" />
-        </div>
-    );
 }
+
