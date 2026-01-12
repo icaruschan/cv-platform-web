@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { SandpackProvider } from '@codesandbox/sandpack-react';
+import StackBlitzPreview from './StackBlitzPreview';
 import CanvasArea from './CanvasArea';
 import EditorLayout from './EditorLayout';
 import ChatSidebar from './ChatSidebar';
@@ -377,29 +377,9 @@ body {
     ) : Object.keys(sandpackFiles).length === 0 ? (
         <WaitingRoom status="building" message="No files yet. Start a conversation!" />
     ) : (
-        <SandpackProvider
-            template="vite-react"
-            files={sandpackFiles}
-            options={{
-                activeFile: '/src/App.tsx',
-                visibleFiles: Object.keys(sandpackFiles),
-                externalResources: [
-                    "https://cdn.tailwindcss.com"
-                ],
-            }}
-            theme="light"
-            customSetup={{
-                dependencies: {
-                    "framer-motion": "^10.16.0",
-                    "@phosphor-icons/react": "^2.0.0",
-                    "clsx": "^2.0.0",
-                }
-            }}
-        >
-            <div className="h-full w-full">
-                <CanvasArea visualEditMode={visualEditMode} />
-            </div>
-        </SandpackProvider>
+        <div className="h-full w-full">
+            <StackBlitzPreview files={sandpackFiles} />
+        </div>
     );
 
     return (
