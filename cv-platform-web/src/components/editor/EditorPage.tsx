@@ -139,38 +139,6 @@ export default defineConfig({
 </html>`;
             }
 
-            // Ensure Tailwind config exists
-            if (!formattedFiles['/tailwind.config.js']) {
-                formattedFiles['/tailwind.config.js'] = `export default {
-  content: [
-    "./src/**/*.{js,ts,jsx,tsx}",
-    "./index.html"
-  ],
-  theme: {
-    extend: {
-      colors: {
-        primary: 'var(--color-primary)',
-        secondary: 'var(--color-secondary)',
-        accent: 'var(--color-accent)',
-        background: 'var(--color-background)',
-        foreground: 'var(--color-foreground)',
-      }
-    },
-  },
-  plugins: [],
-};`;
-            }
-
-            // Ensure PostCSS config exists
-            if (!formattedFiles['/postcss.config.js']) {
-                formattedFiles['/postcss.config.js'] = `export default {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
-};`;
-            }
-
             // ========================================
             // CRITICAL: Ensure entry files exist
             // These are required for the app to render
@@ -209,13 +177,9 @@ export default function App() {
 }`;
             }
 
-            // Ensure index.css exists with Tailwind directives
+            // Ensure index.css exists (Tailwind is loaded via CDN)
             if (!formattedFiles['/src/index.css']) {
-                formattedFiles['/src/index.css'] = `@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
+                formattedFiles['/src/index.css'] = `:root {
   --color-primary: #3b82f6;
   --color-secondary: #1e293b;
   --color-accent: #8b5cf6;
@@ -226,8 +190,6 @@ export default function App() {
 body {
   margin: 0;
   font-family: 'Inter', system-ui, sans-serif;
-  background: var(--color-background);
-  color: var(--color-foreground);
 }`;
             }
 
@@ -421,21 +383,16 @@ body {
             options={{
                 activeFile: '/src/App.tsx',
                 visibleFiles: Object.keys(sandpackFiles),
+                externalResources: [
+                    "https://cdn.tailwindcss.com"
+                ],
             }}
             theme="light"
             customSetup={{
                 dependencies: {
-                    "react": "^18.3.1",
-                    "react-dom": "^18.3.1",
-                    "framer-motion": "^11.0.0",
+                    "framer-motion": "^10.16.0",
                     "@phosphor-icons/react": "^2.0.0",
                     "clsx": "^2.0.0",
-                    "tailwind-merge": "^2.0.0",
-                    "lucide-react": "^0.263.0",
-                    // Styling
-                    "tailwindcss": "^3.4.4",
-                    "autoprefixer": "^10.4.19",
-                    "postcss": "^8.4.38"
                 }
             }}
         >
