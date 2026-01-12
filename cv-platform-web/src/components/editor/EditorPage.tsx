@@ -171,6 +171,66 @@ export default defineConfig({
 };`;
             }
 
+            // ========================================
+            // CRITICAL: Ensure entry files exist
+            // These are required for the app to render
+            // ========================================
+
+            // Ensure main.tsx entry point exists
+            if (!formattedFiles['/src/main.tsx']) {
+                formattedFiles['/src/main.tsx'] = `import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App'
+import './index.css'
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)`;
+            }
+
+            // Ensure App.tsx exists
+            if (!formattedFiles['/src/App.tsx']) {
+                formattedFiles['/src/App.tsx'] = `import React from 'react'
+
+export default function App() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+      <div className="text-center">
+        <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center animate-pulse">
+          <span className="text-white text-2xl">✦</span>
+        </div>
+        <h1 className="text-3xl font-bold text-white mb-2">Building your site...</h1>
+        <p className="text-slate-400">Please wait while we generate your portfolio.</p>
+      </div>
+    </div>
+  )
+}`;
+            }
+
+            // Ensure index.css exists with Tailwind directives
+            if (!formattedFiles['/src/index.css']) {
+                formattedFiles['/src/index.css'] = `@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #3b82f6;
+  --color-secondary: #1e293b;
+  --color-accent: #8b5cf6;
+  --color-background: #0f172a;
+  --color-foreground: #f8fafc;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+}`;
+            }
+
             // package.json is handled by Sandpack customSetup
 
             setSandpackFiles(injectVisualEditing(formattedFiles) as Record<string, string>);

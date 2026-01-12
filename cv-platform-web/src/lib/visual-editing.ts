@@ -145,8 +145,8 @@ export function injectVisualEditing(
 ): Record<string, string | { code: string }> {
   const result = { ...files };
 
-  // 1. Add the hook file
-  result['/hooks/use-visual-editing.ts'] = VISUAL_EDITING_HOOK_CODE;
+  // 1. Add the hook file (inside src/ for proper Vite resolution)
+  result['/src/hooks/use-visual-editing.ts'] = VISUAL_EDITING_HOOK_CODE;
 
   // 2. Patch src/App.tsx (Vite root component)
   const appPath = '/src/App.tsx';
@@ -172,10 +172,10 @@ export function injectVisualEditing(
         const insertPosition = lastImportMatch.index + lastImportMatch[0].length;
         patchedCode =
           appCode.slice(0, insertPosition) +
-          "\nimport { useVisualEditing } from '../hooks/use-visual-editing';" +
+          "\nimport { useVisualEditing } from './hooks/use-visual-editing';" +
           appCode.slice(insertPosition);
       } else {
-        patchedCode = "import { useVisualEditing } from '../hooks/use-visual-editing';\n" + patchedCode;
+        patchedCode = "import { useVisualEditing } from './hooks/use-visual-editing';\n" + patchedCode;
       }
 
       // Patch: Add hook call inside the component
@@ -222,7 +222,7 @@ export function removeVisualEditing(
   const result = { ...files };
 
   // Remove the hook file
-  delete result['/hooks/use-visual-editing.ts'];
+  delete result['/src/hooks/use-visual-editing.ts'];
 
   return result;
 }
