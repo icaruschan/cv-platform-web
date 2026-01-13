@@ -294,34 +294,49 @@ async function scrapeListPage(platform: Platform, listUrl: string): Promise<Plat
 
     switch (platform) {
         case 'framer':
-            // Extract .framer.website links
+            // Extract .framer.website links (direct preview links)
             for (const link of links) {
                 if (link.includes('.framer.website') && !link.includes('framer.com')) {
-                    cards.push({ platform, name: link.split('.')[0].replace('https://', ''), targetUrl: link });
+                    const name = link.split('.')[0].replace('https://', '');
+                    cards.push({ platform, name, targetUrl: link });
                 }
             }
-            // Also try to extract from template URLs
+            // Extract from marketplace template URLs (NOT category pages)
+            // Template URLs: /marketplace/templates/sawad/
+            // Category URLs: /marketplace/templates/category/portfolio/
             for (const link of links) {
-                const match = link.match(/framer\.com\/marketplace\/templates\/([a-zA-Z0-9-]+)/);
+                // Match individual template pages, NOT category pages
+                const match = link.match(/framer\.com\/marketplace\/templates\/([a-zA-Z0-9-]+)\/?$/);
                 if (match) {
                     const slug = match[1].toLowerCase();
+                    // Skip if it's a category keyword
+                    const categoryKeywords = ['category', 'all', 'featured', 'new', 'free'];
+                    if (categoryKeywords.includes(slug)) continue;
+                    // Skip very short slugs that are likely not templates
+                    if (slug.length < 3) continue;
                     cards.push({ platform, name: slug, targetUrl: `https://${slug}.framer.website` });
                 }
             }
             break;
 
         case 'webflow':
-            // Extract .webflow.io links
+            // Extract .webflow.io links (direct preview links)
             for (const link of links) {
-                if (link.includes('.webflow.io')) {
-                    cards.push({ platform, name: link.split('.')[0].replace('https://', ''), targetUrl: link });
+                if (link.includes('.webflow.io') && !link.includes('webflow.com')) {
+                    const name = link.split('.')[0].replace('https://', '');
+                    cards.push({ platform, name, targetUrl: link });
                 }
             }
-            // Also try to extract from template URLs
+            // Extract from template HTML pages
+            // Pattern: /templates/html/[template-name]-website-template
             for (const link of links) {
                 const match = link.match(/webflow\.com\/templates\/html\/([a-zA-Z0-9-]+)/);
                 if (match) {
-                    const slug = match[1].toLowerCase().replace('-website-template', '');
+                    // Clean up slug - remove common suffixes
+                    let slug = match[1].toLowerCase()
+                        .replace(/-website-template$/, '')
+                        .replace(/-template$/, '');
+                    if (slug.length < 3) continue;
                     cards.push({ platform, name: slug, targetUrl: `https://${slug}.webflow.io` });
                 }
             }
@@ -600,21 +615,20 @@ async function extractHybridData(sources: ResolvedSource[]): Promise<ExtractedDa
             // Add delay to avoid rate limiting
             await delay(FIRECRAWL_DELAY_MS);
 
-            // Set up scrape options
+            // Set up scrape options - always wait for JS hydration
             const scrapeOptions: Record<string, unknown> = {
-                formats: ['screenshot']
+                formats: ['screenshot'],
+                waitFor: 3000, // Wait for JS to render
             };
-
-            // Framer sites need extra wait time for hydration
-            if (source.platform === 'Framer') {
-                scrapeOptions.waitFor = 3000;
-                console.log(`      ⏳ ${source.platform}: Waiting for hydration (3s)...`);
-            }
 
             const screenshotResult = await getFirecrawl().scrape(source.resolvedUrl, scrapeOptions as unknown as any) as unknown as FirecrawlScrapeResponse; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-            if (screenshotResult.success) {
+            // Check for screenshot existence (success may be undefined in some SDK versions)
+            if (screenshotResult.screenshot) {
                 data.screenshot = screenshotResult.screenshot;
+                console.log(`      ✅ ${source.platform}: Screenshot captured (${Math.round(screenshotResult.screenshot.length / 1024)}KB)`);
+            } else {
+                console.log(`      ⚠️ ${source.platform}: No screenshot returned`);
             }
 
             // Get branding only for sites that support it
@@ -627,9 +641,10 @@ async function extractHybridData(sources: ResolvedSource[]): Promise<ExtractedDa
                     // Use native Firecrawl branding format (returns full CSS properties)
                     const brandingResult = await getFirecrawl().scrape(source.resolvedUrl, {
                         formats: ['branding'] as unknown as any // eslint-disable-line @typescript-eslint/no-explicit-any
-                    }) as unknown as { success: boolean; branding?: BrandingData };
+                    }) as unknown as { success?: boolean; branding?: BrandingData };
 
-                    if (brandingResult.success && brandingResult.branding) {
+                    // Check for branding existence (not just success flag)
+                    if (brandingResult.branding) {
                         data.branding = brandingResult.branding;
                         console.log(`      ✅ ${source.platform}: Full branding extracted`);
 
@@ -640,6 +655,8 @@ async function extractHybridData(sources: ResolvedSource[]): Promise<ExtractedDa
                         console.log(`         - Animations: ${b.animations ? Object.keys(b.animations).length : 0}`);
                         console.log(`         - Components: ${b.components ? 'yes' : 'no'}`);
                         console.log(`         - Personality: ${b.personality ? 'yes' : 'no'}`);
+                    } else {
+                        console.log(`      ⚠️ ${source.platform}: No branding returned`);
                     }
                 } catch {
                     console.warn(`      ⚠️ ${source.platform}: Branding extraction failed`);
