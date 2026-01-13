@@ -135,10 +135,15 @@ export default function StackBlitzPreview({ files, onLoad, onError }: StackBlitz
 
                 setLoadingStage('deps');
 
-                // Use GitHub template for faster cold starts (deps pre-cached)
-                const vm = await sdk.embedGithubProject(
+                // Embed project with all files inline
+                const vm = await sdk.embedProject(
                     containerRef.current!,
-                    'icaruschan/stackblitz-portfolio-template',
+                    {
+                        title: 'Portfolio',
+                        description: 'AI-Generated Portfolio',
+                        template: TEMPLATE_CONFIG.template,
+                        files: projectFiles,
+                    },
                     {
                         view: 'preview',
                         hideNavigation: true,
@@ -146,15 +151,8 @@ export default function StackBlitzPreview({ files, onLoad, onError }: StackBlitz
                         terminalHeight: 0,
                         clickToLoad: false,
                         startScript: 'dev',
-                        openFile: 'src/App.tsx',
                     }
                 );
-
-                // Apply our generated files on top of the template
-                await vm.applyFsDiff({
-                    create: projectFiles,
-                    destroy: [], // Don't remove any template files
-                });
 
                 vmRef.current = vm;
                 setLoadingStage('build');
