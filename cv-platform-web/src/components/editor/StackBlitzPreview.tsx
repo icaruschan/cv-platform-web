@@ -1,7 +1,7 @@
 'use client';
 
 import sdk, { VM } from '@stackblitz/sdk';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 
 interface StackBlitzPreviewProps {
     files: Record<string, string>;
@@ -79,47 +79,49 @@ export default function StackBlitzPreview({ files, onLoad, onError }: StackBlitz
     const [loadingStage, setLoadingStage] = useState<'init' | 'deps' | 'build' | 'ready' | 'error'>('init');
     const [error, setError] = useState<string | null>(null);
 
-    // Convert our Vite-style files to StackBlitz format
-    const prepareFiles = useCallback((inputFiles: Record<string, string>) => {
-        const projectFiles: Record<string, string> = {
+    // Memoize prepared files - only recompute when input files change
+    const projectFiles = useMemo(() => {
+        if (Object.keys(files).length === 0) return null;
+
+        const prepared: Record<string, string> = {
             // Start with base config files
             ...BASE_FILES,
             'package.json': JSON.stringify(TEMPLATE_CONFIG.basePackageJson, null, 2),
         };
 
         // Copy all generated files, removing leading slashes
-        Object.entries(inputFiles).forEach(([path, content]) => {
+        Object.entries(files).forEach(([path, content]) => {
             const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-            projectFiles[cleanPath] = content;
+            prepared[cleanPath] = content;
         });
 
         // Ensure index.html exists with Tailwind CDN and Google Fonts
-        if (!projectFiles['index.html']) {
-            projectFiles['index.html'] = createIndexHtml();
+        if (!prepared['index.html']) {
+            prepared['index.html'] = createIndexHtml();
         } else {
-            projectFiles['index.html'] = injectCdnDependencies(projectFiles['index.html']);
+            prepared['index.html'] = injectCdnDependencies(prepared['index.html']);
         }
 
         // Ensure main.tsx exists
-        if (!projectFiles['src/main.tsx']) {
-            projectFiles['src/main.tsx'] = createMainTsx();
+        if (!prepared['src/main.tsx']) {
+            prepared['src/main.tsx'] = createMainTsx();
         }
 
         // Ensure App.tsx exists with a fallback
-        if (!projectFiles['src/App.tsx']) {
-            projectFiles['src/App.tsx'] = createFallbackApp();
+        if (!prepared['src/App.tsx']) {
+            prepared['src/App.tsx'] = createFallbackApp();
         }
 
         // Ensure index.css exists
-        if (!projectFiles['src/index.css']) {
-            projectFiles['src/index.css'] = `body { margin: 0; font-family: 'Inter', system-ui, sans-serif; }`;
+        if (!prepared['src/index.css']) {
+            prepared['src/index.css'] = `body { margin: 0; font-family: 'Inter', system-ui, sans-serif; }`;
         }
 
-        return projectFiles;
-    }, []);
+        return prepared;
+    }, [files]);
 
     useEffect(() => {
-        if (!containerRef.current || Object.keys(files).length === 0) return;
+        if (!containerRef.current || !projectFiles) return;
 
         const embedProject = async () => {
             try {
@@ -131,7 +133,6 @@ export default function StackBlitzPreview({ files, onLoad, onError }: StackBlitz
                     containerRef.current.innerHTML = '';
                 }
 
-                const projectFiles = prepareFiles(files);
 
                 setLoadingStage('deps');
 
@@ -177,7 +178,7 @@ export default function StackBlitzPreview({ files, onLoad, onError }: StackBlitz
         return () => {
             vmRef.current = null;
         };
-    }, [files, prepareFiles, onLoad, onError]);
+    }, [projectFiles, onLoad, onError]);
 
     if (loadingStage === 'error') {
         return (
