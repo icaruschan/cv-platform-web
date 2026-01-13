@@ -133,27 +133,28 @@ export default function StackBlitzPreview({ files, onLoad, onError }: StackBlitz
                     containerRef.current.innerHTML = '';
                 }
 
-
                 setLoadingStage('deps');
 
-                const vm = await sdk.embedProject(
+                // Use GitHub template for faster cold starts (deps pre-cached)
+                const vm = await sdk.embedGithubProject(
                     containerRef.current!,
-                    {
-                        title: 'Portfolio',
-                        description: 'AI-Generated Portfolio',
-                        template: TEMPLATE_CONFIG.template,
-                        files: projectFiles,
-                    },
+                    'icaruschan/stackblitz-portfolio-template',
                     {
                         view: 'preview',
                         hideNavigation: true,
                         hideExplorer: true,
                         terminalHeight: 0,
                         clickToLoad: false,
-                        // Start Vite immediately
                         startScript: 'dev',
+                        openFile: 'src/App.tsx',
                     }
                 );
+
+                // Apply our generated files on top of the template
+                await vm.applyFsDiff({
+                    create: projectFiles,
+                    destroy: [], // Don't remove any template files
+                });
 
                 vmRef.current = vm;
                 setLoadingStage('build');
