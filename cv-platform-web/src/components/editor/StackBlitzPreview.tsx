@@ -136,6 +136,7 @@ export default function StackBlitzPreview({ files, onLoad, onError }: StackBlitz
                 setLoadingStage('deps');
 
                 // Embed project with all files inline
+                // Note: timeout in ms for how long to wait for VM connection
                 const vm = await sdk.embedProject(
                     containerRef.current!,
                     {
@@ -151,17 +152,20 @@ export default function StackBlitzPreview({ files, onLoad, onError }: StackBlitz
                         terminalHeight: 0,
                         clickToLoad: false,
                         startScript: 'dev',
+                        // Longer timeout for VM connection (default is 20s)
+                        // @ts-ignore - timeout option may not be in types but works
+                        timeout: 120000, // 120 seconds
                     }
                 );
 
                 vmRef.current = vm;
                 setLoadingStage('build');
 
-                // Give Vite a moment to compile, then mark as ready
+                // Give Vite more time to compile (especially first load), then mark as ready
                 setTimeout(() => {
                     setLoadingStage('ready');
                     onLoad?.();
-                }, 2000);
+                }, 4000);
 
             } catch (err) {
                 console.error('StackBlitz embed error:', err);
