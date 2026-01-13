@@ -195,10 +195,7 @@ body {
 
             // package.json is handled by Sandpack customSetup
 
-            // DEBUG: Temporarily disable visual editing injection to verify if it's breaking the build
-            // setSandpackFiles(injectVisualEditing(formattedFiles) as Record<string, string>);
-            setSandpackFiles(formattedFiles);
-
+            setSandpackFiles(injectVisualEditing(formattedFiles) as Record<string, string>);
             setIsLoading(false);
             setStatus('ready');
         } else {
