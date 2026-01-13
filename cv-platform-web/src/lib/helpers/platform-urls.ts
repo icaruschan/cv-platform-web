@@ -12,120 +12,328 @@
 // ============================================================================
 
 /**
+ * Complete Awwwards color palette with semantic names.
+ * @see https://www.awwwards.com/websites/?tag=portfolio&palette=%23[HEX]
+ */
+const AWWWARDS_COLORS = {
+    // Reds
+    darkRed: '#B42625',
+    red: '#DA4F48',
+    lightRed: '#E88D88',
+    // Oranges
+    darkOrange: '#C14E0B',
+    orange: '#F57327',
+    // Pinks
+    salmon: '#F0CED1',
+    darkPink: '#9D33A1',
+    pink: '#C559C4',
+    lightPink: '#DC94DE',
+    // Yellows
+    gold: '#FABC0F',
+    yellow: '#FAD15F',
+    lightYellow: '#FBE9A7',
+    // Greens
+    darkGreen: '#819526',
+    green: '#B3CF3C',
+    lightGreen: '#CDDE7E',
+    // Blues
+    darkBlue: '#1981C8',
+    blue: '#49ABE8',
+    lightBlue: '#8FCAF0',
+    // Purples
+    darkPurple: '#7B19C8',
+    purple: '#9743D9',
+    lightPurple: '#BE83ED',
+    // Grays (dark to light)
+    darkGray: '#404040',    // Perfect for dark themes
+    gray: '#7A7A7A',        // Good for dark themes
+    lightGray: '#C4C4C4',
+    offWhite: '#E4E3E3',
+    nearWhite: '#F3F2F2',
+    white: '#FFFFFF',
+};
+
+/**
  * Maps common vibe keywords to platform-specific filter values.
  * Each platform has its own naming conventions for styles.
+ * 
+ * Framer styles (17): 3D, Animated, Black & White, Colorful, Dark, Gradient, 
+ *   Grid, Illustrative, Large Type, Light, Minimal, Modern, Monochromatic, 
+ *   Pastel, Professional, Retro, Typographic
+ * 
+ * Webflow styles (9): Playful, Modern, Bold, Light, Corporate, Illustration,
+ *   Dark, Retro, Minimal
+ * 
+ * Godly styles (30): Dark, Minimal, Interactive, Large Type, Animation, 
+ *   Single Page, Unusual Layout, Typographic, Fun, Long Scrolling, 
+ *   Big Background Video, Black & White, Clean, Colourful, Gradient, 
+ *   Illustrative, Grid, Small Type, Bento Grid, Infinite Scroll, Monochromatic,
+ *   Horizontal Layout, Big Background Image, Light, Pastel, Retro, 
+ *   Brutalist, Drag & Drop, Horizontal Scrolling, Masonry
+ * 
+ * Awwwards: 27 color palette options
  */
 export const VIBE_MAPPINGS: Record<string, {
     framer?: string[];
     webflow?: string[];
-    awwwards?: string[];  // Hex color palettes
+    awwwards?: string[];  // Hex color codes
     godly?: string[];
 }> = {
-    // Dark themes
+    // ==================== THEME MODES ====================
     dark: {
         framer: ['dark'],
         webflow: ['Dark'],
-        awwwards: ['#404040', '#7A7A7A'],
+        awwwards: [AWWWARDS_COLORS.darkGray, AWWWARDS_COLORS.gray],
         godly: ['dark'],
     },
+    light: {
+        framer: ['light'],
+        webflow: ['Light'],
+        awwwards: [AWWWARDS_COLORS.offWhite, AWWWARDS_COLORS.nearWhite, AWWWARDS_COLORS.white],
+        godly: ['light'],
+    },
 
-    // Minimal/Clean
+    // ==================== STYLE AESTHETICS ====================
     minimal: {
         framer: ['minimal'],
         webflow: ['Minimal'],
+        awwwards: [AWWWARDS_COLORS.darkGray, AWWWARDS_COLORS.white],
         godly: ['minimal', 'clean'],
     },
     clean: {
         framer: ['minimal'],
         webflow: ['Minimal'],
+        awwwards: [AWWWARDS_COLORS.white, AWWWARDS_COLORS.nearWhite],
         godly: ['clean'],
     },
-
-    // Modern/Interactive
     modern: {
         framer: ['modern'],
         webflow: ['Modern'],
+        awwwards: [AWWWARDS_COLORS.darkGray],
         godly: ['interactive', 'animation'],
     },
-    interactive: {
-        framer: ['animated'],
-        godly: ['interactive'],
+    professional: {
+        framer: ['professional'],
+        webflow: ['Corporate'],
+        awwwards: [AWWWARDS_COLORS.darkGray, AWWWARDS_COLORS.darkBlue],
+        godly: ['clean', 'minimal'],
+    },
+    corporate: {
+        framer: ['professional'],
+        webflow: ['Corporate'],
+        awwwards: [AWWWARDS_COLORS.darkBlue, AWWWARDS_COLORS.gray],
+        godly: ['clean'],
+    },
+    retro: {
+        framer: ['retro'],
+        webflow: ['Retro'],
+        awwwards: [AWWWARDS_COLORS.orange, AWWWARDS_COLORS.gold],
+        godly: ['retro'],
     },
 
-    // Typography focused
+    // ==================== TYPOGRAPHY ====================
     typographic: {
         framer: ['typographic', 'large-type'],
         webflow: ['Bold'],
+        awwwards: [AWWWARDS_COLORS.darkGray],
         godly: ['typographic', 'large-type'],
     },
     bold: {
         framer: ['large-type'],
         webflow: ['Bold'],
+        awwwards: [AWWWARDS_COLORS.darkGray, AWWWARDS_COLORS.red],
         godly: ['large-type'],
     },
+    'large-type': {
+        framer: ['large-type'],
+        webflow: ['Bold'],
+        godly: ['large-type'],
+    },
+    'small-type': {
+        framer: ['minimal'],
+        godly: ['small-type'],
+    },
 
-    // Visual styles
+    // ==================== VISUAL EFFECTS ====================
+    '3d': {
+        framer: ['3d'],
+        godly: ['3d'],
+    },
+    animated: {
+        framer: ['animated'],
+        godly: ['animation', 'interactive'],
+    },
+    animation: {
+        framer: ['animated'],
+        godly: ['animation'],
+    },
+    interactive: {
+        framer: ['animated'],
+        godly: ['interactive'],
+    },
     gradient: {
         framer: ['gradient'],
+        awwwards: [AWWWARDS_COLORS.purple, AWWWARDS_COLORS.blue, AWWWARDS_COLORS.pink],
         godly: ['gradient'],
     },
+    glassmorphism: {
+        framer: ['gradient', 'modern'],
+        godly: ['gradient'],
+    },
+    brutalist: {
+        framer: ['black-white', 'typographic'],
+        godly: ['brutalist'],
+    },
+
+    // ==================== LAYOUT PATTERNS ====================
+    grid: {
+        framer: ['grid'],
+        awwwards: [AWWWARDS_COLORS.darkGray],
+        godly: ['grid'],
+    },
+    bento: {
+        framer: ['grid'],
+        godly: ['bento-grid'],
+    },
+    'bento-grid': {
+        framer: ['grid'],
+        godly: ['bento-grid'],
+    },
+    'single-page': {
+        godly: ['single-page'],
+    },
+    'unusual-layout': {
+        godly: ['unusual-layout'],
+    },
+    'horizontal-layout': {
+        godly: ['horizontal-layout'],
+    },
+    'horizontal-scrolling': {
+        godly: ['horizontal-scrolling'],
+    },
+    masonry: {
+        framer: ['grid'],
+        godly: ['masonry'],
+    },
+
+    // ==================== SCROLL/MOTION ====================
+    'long-scrolling': {
+        godly: ['long-scrolling'],
+    },
+    'infinite-scroll': {
+        godly: ['infinite-scroll'],
+    },
+    scroll: {
+        godly: ['long-scrolling', 'infinite-scroll'],
+    },
+
+    // ==================== BACKGROUND STYLES ====================
+    'big-background-video': {
+        godly: ['big-background-video'],
+    },
+    'big-background-image': {
+        godly: ['big-background-image'],
+    },
+    video: {
+        godly: ['big-background-video'],
+    },
+
+    // ==================== COLOR THEMES ====================
     colorful: {
         framer: ['colorful'],
+        awwwards: [AWWWARDS_COLORS.blue, AWWWARDS_COLORS.purple, AWWWARDS_COLORS.orange],
+        godly: ['colourful'],
+    },
+    colourful: {
+        framer: ['colorful'],
+        awwwards: [AWWWARDS_COLORS.blue, AWWWARDS_COLORS.purple, AWWWARDS_COLORS.orange],
         godly: ['colourful'],
     },
     monochrome: {
         framer: ['monochromatic', 'black-white'],
-        godly: ['monochromatic', 'black-white'],
+        awwwards: [AWWWARDS_COLORS.darkGray, AWWWARDS_COLORS.gray, AWWWARDS_COLORS.lightGray],
+        godly: ['monochromatic'],
+    },
+    monochromatic: {
+        framer: ['monochromatic'],
+        awwwards: [AWWWARDS_COLORS.darkGray, AWWWARDS_COLORS.gray],
+        godly: ['monochromatic'],
+    },
+    blackwhite: {
+        framer: ['black-white'],
+        awwwards: [AWWWARDS_COLORS.darkGray, AWWWARDS_COLORS.white],
+        godly: ['black-white'],
+    },
+    'black-white': {
+        framer: ['black-white'],
+        awwwards: [AWWWARDS_COLORS.darkGray, AWWWARDS_COLORS.white],
+        godly: ['black-white'],
+    },
+    pastel: {
+        framer: ['pastel'],
+        awwwards: [AWWWARDS_COLORS.lightBlue, AWWWARDS_COLORS.lightPink, AWWWARDS_COLORS.lightYellow],
+        godly: ['pastel'],
     },
 
-    // Retro/Vintage
-    retro: {
-        framer: ['retro'],
-        webflow: ['Retro'],
-        godly: ['retro'],
-    },
-
-    // Professional
-    professional: {
-        framer: ['professional'],
-        webflow: ['Corporate'],
-        godly: ['clean'],
-    },
-    corporate: {
-        framer: ['professional'],
-        webflow: ['Corporate'],
-    },
-
-    // Creative/Playful
-    playful: {
+    // ==================== SPECIFIC COLORS ====================
+    blue: {
         framer: ['colorful'],
+        awwwards: [AWWWARDS_COLORS.darkBlue, AWWWARDS_COLORS.blue, AWWWARDS_COLORS.lightBlue],
+        godly: ['colourful'],
+    },
+    purple: {
+        framer: ['colorful', 'gradient'],
+        awwwards: [AWWWARDS_COLORS.darkPurple, AWWWARDS_COLORS.purple, AWWWARDS_COLORS.lightPurple],
+        godly: ['colourful'],
+    },
+    pink: {
+        framer: ['colorful', 'pastel'],
+        awwwards: [AWWWARDS_COLORS.darkPink, AWWWARDS_COLORS.pink, AWWWARDS_COLORS.lightPink],
+        godly: ['colourful'],
+    },
+    red: {
+        framer: ['colorful'],
+        awwwards: [AWWWARDS_COLORS.darkRed, AWWWARDS_COLORS.red, AWWWARDS_COLORS.lightRed],
+        godly: ['colourful'],
+    },
+    orange: {
+        framer: ['colorful'],
+        awwwards: [AWWWARDS_COLORS.darkOrange, AWWWARDS_COLORS.orange],
+        godly: ['colourful'],
+    },
+    yellow: {
+        framer: ['colorful'],
+        awwwards: [AWWWARDS_COLORS.gold, AWWWARDS_COLORS.yellow, AWWWARDS_COLORS.lightYellow],
+    },
+    green: {
+        framer: ['colorful'],
+        awwwards: [AWWWARDS_COLORS.darkGreen, AWWWARDS_COLORS.green, AWWWARDS_COLORS.lightGreen],
+        godly: ['colourful'],
+    },
+
+    // ==================== CREATIVE ====================
+    playful: {
+        framer: ['colorful', 'animated'],
         webflow: ['Playful'],
+        awwwards: [AWWWARDS_COLORS.pink, AWWWARDS_COLORS.yellow, AWWWARDS_COLORS.blue],
+        godly: ['fun', 'colourful'],
+    },
+    fun: {
+        framer: ['colorful', 'animated'],
+        webflow: ['Playful'],
+        awwwards: [AWWWARDS_COLORS.pink, AWWWARDS_COLORS.yellow],
         godly: ['fun'],
     },
     creative: {
         framer: ['illustrative'],
         webflow: ['Illustration'],
+        awwwards: [AWWWARDS_COLORS.purple, AWWWARDS_COLORS.orange],
         godly: ['illustrative'],
     },
-
-    // Layout styles
-    grid: {
-        framer: ['grid'],
-        godly: ['grid', 'bento-grid'],
-    },
-    bento: {
-        godly: ['bento-grid'],
-    },
-
-    // Light themes
-    light: {
-        framer: ['light'],
-        webflow: ['Light'],
-        godly: ['light'],
-    },
-    pastel: {
-        framer: ['pastel'],
-        godly: ['pastel'],
+    illustrative: {
+        framer: ['illustrative'],
+        webflow: ['Illustration'],
+        godly: ['illustrative'],
     },
 };
 
@@ -145,7 +353,7 @@ export const KNOWN_KEYWORDS = Object.keys(VIBE_MAPPINGS);
 const DEFAULT_FILTERS = {
     framer: ['dark', 'modern'],
     webflow: ['Modern', 'Dark'],
-    awwwards: '#404040',
+    awwwards: AWWWARDS_COLORS.darkGray,
     godly: ['dark', 'minimal'],
 };
 
