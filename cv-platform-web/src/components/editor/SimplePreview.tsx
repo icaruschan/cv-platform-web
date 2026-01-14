@@ -238,8 +238,9 @@ function generateComponentCode(components: Record<string, string>, appCode: stri
             get: (target, prop) => IconStub
         });
 
-        // Framer Motion Proxy
-        window.FramerMotion = new Proxy({
+        // Framer Motion - Use the REAL CDN-loaded library (window.Motion)
+        // If not loaded, fall back to a stub proxy
+        window.FramerMotion = window.Motion || new Proxy({
             AnimatePresence: ({ children }) => children,
             motion: new Proxy({}, {
                 get: (target, prop) => (props) => React.createElement(prop || 'div', props)
@@ -250,6 +251,11 @@ function generateComponentCode(components: Record<string, string>, appCode: stri
                 return (props) => props.children || null; 
             }
         });
+
+        // useVisualEditing stub - the hook is injected but we need a no-op in preview
+        function useVisualEditing() {
+            return { enabled: false };
+        }
 
         // Components
         ${stubComponents}
@@ -273,6 +279,7 @@ function cleanComponentCode(code: string, componentName: string): string {
     // Transform known libraries to global proxies
     cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]lucide-react['"];?/g, 'const $1 = window.LucideReact;');
     cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]framer-motion['"];?/g, 'const $1 = window.FramerMotion;');
+    cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]@phosphor-icons\/react['"];?/g, 'const $1 = window.PhosphorIcons;');
 
     // Remove other imports
     cleaned = cleaned.replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?/g, '');
@@ -298,6 +305,7 @@ function cleanAppCode(code: string): string {
     // Transform known libraries
     cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]lucide-react['"];?/g, 'const $1 = window.LucideReact;');
     cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]framer-motion['"];?/g, 'const $1 = window.FramerMotion;');
+    cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]@phosphor-icons\/react['"];?/g, 'const $1 = window.PhosphorIcons;');
 
     // Remove other imports
     cleaned = cleaned.replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?/g, '');
