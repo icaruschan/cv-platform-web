@@ -87,7 +87,7 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
                 let compiled;
                 try {
                     compiled = Babel.transform(code, { 
-                        presets: ['react', ['env', { modules: false }]],
+                        presets: ['react', 'typescript', ['env', { modules: false }]],
                         filename: 'app.tsx'
                     }).code;
                 } catch (e) {
