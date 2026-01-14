@@ -66,7 +66,7 @@ export interface Moodboard {
         layout_structure: string;
     };
     motion: {
-        profile: 'STUDIO' | 'TECH'; // From Motion System
+        profile: 'STUDIO' | 'TECH' | 'BOLD'; // From Motion System
         description: string;
     };
     // NEW: Extended fields from Firecrawl branding extraction

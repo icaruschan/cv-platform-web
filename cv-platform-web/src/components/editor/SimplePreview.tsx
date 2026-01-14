@@ -65,9 +65,10 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/react@2.1.7/dist/index.umd.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; background-color: #0f172a; color: white; }
@@ -135,7 +136,11 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
                             if (prop in target) return target[prop];
                             if (prop === 'React') return window.React;
                             if (prop === 'ReactDOM') return window.ReactDOM;
-                            // Return stub for anything else (missing imports/icons)
+                            // Check Phosphor Icons (they're on window.PhosphorIcons)
+                            if (window.PhosphorIcons && prop in window.PhosphorIcons) {
+                                return window.PhosphorIcons[prop];
+                            }
+                            // Return stub for anything else (missing imports)
                             return window.__IconStub;
                         }
                     });
