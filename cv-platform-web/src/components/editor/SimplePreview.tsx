@@ -154,6 +154,11 @@ function generateComponentCode(components: Record<string, string>, appCode: stri
     const cleanedApp = cleanAppCode(appCode);
 
     return `
+        // Check libraries
+        if (typeof React === 'undefined') throw new Error('React failed to load');
+        if (typeof ReactDOM === 'undefined') throw new Error('ReactDOM failed to load');
+        if (typeof Babel === 'undefined') throw new Error('Babel failed to load');
+
         // Stub hooks/libs
         const useVisualEditing = () => {};
         const motion = new Proxy({}, {
@@ -178,8 +183,10 @@ function generateComponentCode(components: Record<string, string>, appCode: stri
 }
 
 function cleanComponentCode(code: string, componentName: string): string {
-    // Remove imports
-    let cleaned = code.replace(/^import.*$/gm, '');
+    // Remove imports (including multi-line)
+    let cleaned = code.replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?/g, '');
+    // Remove side-effect imports like import './style.css';
+    cleaned = cleaned.replace(/import\s+['"][^'"]+['"];?/g, '');
     // Remove export default  
     cleaned = cleaned.replace(/export\s+default\s+/g, '');
     // Remove 'use client'
@@ -188,8 +195,10 @@ function cleanComponentCode(code: string, componentName: string): string {
 }
 
 function cleanAppCode(code: string): string {
-    // Remove imports
-    let cleaned = code.replace(/^import.*$/gm, '');
+    // Remove imports (including multi-line)
+    let cleaned = code.replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?/g, '');
+    // Remove side-effect imports
+    cleaned = cleaned.replace(/import\s+['"][^'"]+['"];?/g, '');
     // Remove export default
     cleaned = cleaned.replace(/export\s+default\s+/g, '');
     // Remove 'use client'
