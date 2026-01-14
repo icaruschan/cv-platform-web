@@ -65,6 +65,7 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://unpkg.com/framer-motion@11.0.8/dist/framer-motion.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/react@2.1.7/dist/index.umd.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -136,6 +137,10 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
                             if (prop in target) return target[prop];
                             if (prop === 'React') return window.React;
                             if (prop === 'ReactDOM') return window.ReactDOM;
+                            // Check Framer Motion (they're on window.Motion)
+                            if (window.Motion && prop in window.Motion) {
+                                return window.Motion[prop];
+                            }
                             // Check Phosphor Icons (they're on window.PhosphorIcons)
                             if (window.PhosphorIcons && prop in window.PhosphorIcons) {
                                 return window.PhosphorIcons[prop];
