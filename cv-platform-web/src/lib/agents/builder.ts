@@ -316,22 +316,45 @@ import Hero from './components/Hero';
 import React from 'react';
 ...
 
-## FILES TO GENERATE (REQUIRED)
-1. src/main.tsx (Entry point, mounts App to root)
-2. src/App.tsx (Main app wrapper)
-3. src/index.css (CSS variables from Style Guide + Tailwind setup)
-4. src/components/Hero.tsx
-5. src/components/About.tsx
-6. src/components/Projects.tsx
-7. src/components/Skills.tsx
-8. src/components/Contact.tsx
-
-**IMPORTANT PATH RULES:**
-- All code goes in 'src/'
-- Import components using relative paths: './components/Hero'
-- Import styles in main.tsx: "import './index.css'"
-
-Generate ALL files in a single response. Ensure perfectly consistent design across all components.`;
+319: ## FILES TO GENERATE (REQUIRED)
+320: 1. src/main.tsx (Entry point, mounts App to root)
+321: 2. src/App.tsx (Main app wrapper)
+322: 3. src/index.css (CSS variables from Style Guide + Tailwind setup)
+323: 4. tailwind.config.ts (ESM format, extending theme with CSS vars)
+324: 5. src/components/Hero.tsx
+325: 6. src/components/About.tsx
+326: 7. src/components/Projects.tsx
+327: 8. src/components/Skills.tsx
+328: 9. src/components/Contact.tsx
+329: 
+330: **IMPORTANT PATH RULES:**
+331: - All code goes in 'src/' (except tailwind.config.ts)
+332: - Import components using relative paths: './components/Hero'
+333: - Import styles in main.tsx: "import './index.css'"
+334: 
+335: **TAILWIND CONFIG INSTRUCTIONS:**
+336: export default {
+337:   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+338:   theme: {
+339:     extend: {
+340:       colors: {
+341:         background: "var(--color-background)",
+342:         primary: "var(--color-primary)",
+343:         secondary: "var(--color-secondary)",
+344:         accent: "var(--color-accent)",
+345:         text: "var(--color-text)",
+346:       },
+347:       fontFamily: {
+348:         heading: "var(--font-heading)",
+349:         body: "var(--font-body)",
+350:         mono: "var(--font-mono)",
+351:       }
+352:     }
+353:   },
+354:   plugins: [],
+355: }
+356: 
+357: Generate ALL files in a single response. Ensure perfectly consistent design across all components.`;
 }
 
 // ============================================================================

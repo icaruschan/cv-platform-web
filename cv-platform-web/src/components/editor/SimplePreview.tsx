@@ -40,6 +40,28 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portfolio Preview</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Inject Premium Fallback Config for Tailwind
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#F5F5F5',
+                        text: '#111827',
+                        primary: '#000000',
+                        secondary: '#ffffff',
+                        accent: '#3b82f6',
+                        surface: '#f3f4f6'
+                    },
+                    fontFamily: {
+                        heading: ['Inter', 'sans-serif'],
+                        body: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
