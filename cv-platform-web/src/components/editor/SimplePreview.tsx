@@ -72,13 +72,19 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
             return false;
         };
 
-        // Main execution
         window.addEventListener('load', function() {
             try {
                 // Check libs
                 if (typeof React === 'undefined') throw new Error('React not loaded');
                 if (typeof ReactDOM === 'undefined') throw new Error('ReactDOM not loaded');
                 if (typeof Babel === 'undefined') throw new Error('Babel not loaded');
+
+                // Define global stub for missing components
+                window.__IconStub = (props) => React.createElement('svg', { 
+                    ...props, 
+                    width: 24, height: 24, viewBox: '0 0 24 24', 
+                    fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' 
+                }, React.createElement('rect', { x: 3, y: 3, width: 18, height: 18, rx: 2 }));
 
                 // Source code
                 const code = \`${generateComponentCode(componentFiles, appCode).replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`;
@@ -90,15 +96,31 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
                         presets: ['react', 'typescript', ['env', { modules: false }]],
                         filename: 'app.tsx'
                     }).code;
+                    // Remove strict mode to allow 'with' statement
+                    compiled = compiled.replace(/"use strict";/g, '').replace(/'use strict';/g, '');
                 } catch (e) {
                     showError('Compilation Error (Syntax)', e);
                     return;
                 }
 
-                // Execute
+                // Execute with Proxy Sandbox
                 try {
-                    // Create a function to run the code
-                    new Function(compiled)();
+                    // Create a proxy to catch all undefined variables
+                    const sandboxProxy = new Proxy(window, {
+                        has: (target, prop) => true, // Trap everything
+                        get: (target, prop) => {
+                            // Allow access to real globals
+                            if (prop in target) return target[prop];
+                            if (prop === 'React') return window.React;
+                            if (prop === 'ReactDOM') return window.ReactDOM;
+                            // Return stub for anything else (missing imports/icons)
+                            return window.__IconStub;
+                        }
+                    });
+
+                    // Run code with the proxy as scope
+                    const runner = new Function('sandbox', 'with(sandbox) { ' + compiled + ' }');
+                    runner(sandboxProxy);
                 } catch (e) {
                     showError('Execution Error', e);
                 }
