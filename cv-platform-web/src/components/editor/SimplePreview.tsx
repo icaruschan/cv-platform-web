@@ -290,14 +290,15 @@ function cleanComponentCode(code: string, componentName: string): string {
     let cleaned = code;
 
     // Transform known libraries to global proxies
-    cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]react['"];?/g, 'const $1 = React;');
-    cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]lucide-react['"];?/g, 'const $1 = window.LucideReact;');
-    cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]framer-motion['"];?/g, 'const $1 = window.FramerMotion;');
-    cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]@phosphor-icons\/react['"];?/g, 'const $1 = window.PhosphorIcons;');
+    // Use simpler, more precise patterns: match { ... } without crossing into other imports
+    cleaned = cleaned.replace(/import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]react['"];?/g, 'const { $1 } = React;');
+    cleaned = cleaned.replace(/import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]lucide-react['"];?/g, 'const { $1 } = window.LucideReact;');
+    cleaned = cleaned.replace(/import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]framer-motion['"];?/g, 'const { $1 } = window.FramerMotion;');
+    cleaned = cleaned.replace(/import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]@phosphor-icons\/react['"];?/g, 'const { $1 } = window.PhosphorIcons;');
 
-    // Remove other imports
-    cleaned = cleaned.replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?/g, '');
-    cleaned = cleaned.replace(/import\s+['"][^'"]+['"];?/g, '');
+    // Remove other imports (CSS imports, relative imports, etc.)
+    cleaned = cleaned.replace(/import\s*\{[^}]*\}\s*from\s*['"][^'"]+['"];?/g, '');
+    cleaned = cleaned.replace(/import\s+[^;]+;?/g, '');
 
     // Handle exports
     cleaned = cleaned.replace(/export\s+default\s+function\s+([a-zA-Z0-9_]+)/g, 'function $1');
@@ -316,15 +317,15 @@ function cleanComponentCode(code: string, componentName: string): string {
 function cleanAppCode(code: string): string {
     let cleaned = code;
 
-    // Transform known libraries
-    cleaned = cleaned.replace(/import\s+({\s*[\s\S]*?})\s+from\s+['"]react['"];?/g, 'const $1 = React;');
-    cleaned = cleaned.replace(/import\s+({\s*[\s\S]*?})\s+from\s+['"]lucide-react['"];?/g, 'const $1 = window.LucideReact;');
-    cleaned = cleaned.replace(/import\s+({\s*[\s\S]*?})\s+from\s+['"]framer-motion['"];?/g, 'const $1 = window.FramerMotion;');
-    cleaned = cleaned.replace(/import\s+({\s*[\s\S]*?})\s+from\s+['"]@phosphor-icons\/react['"];?/g, 'const $1 = window.PhosphorIcons;');
+    // Transform known libraries - use simpler patterns that match { ... } without crossing imports
+    cleaned = cleaned.replace(/import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]react['"];?/g, 'const { $1 } = React;');
+    cleaned = cleaned.replace(/import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]lucide-react['"];?/g, 'const { $1 } = window.LucideReact;');
+    cleaned = cleaned.replace(/import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]framer-motion['"];?/g, 'const { $1 } = window.FramerMotion;');
+    cleaned = cleaned.replace(/import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]@phosphor-icons\/react['"];?/g, 'const { $1 } = window.PhosphorIcons;');
 
-    // Remove other imports
-    cleaned = cleaned.replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?/g, '');
-    cleaned = cleaned.replace(/import\s+['"][^'"]+['"];?/g, '');
+    // Remove other imports (CSS imports, relative imports, etc.)
+    cleaned = cleaned.replace(/import\s*\{[^}]*\}\s*from\s*['"][^'"]+['"];?/g, '');
+    cleaned = cleaned.replace(/import\s+[^;]+;?/g, '');
 
     // Handle exports
     cleaned = cleaned.replace(/export\s+default\s+function\s+([a-zA-Z0-9_]+)/g, 'function $1');
