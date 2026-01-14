@@ -132,10 +132,10 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
                     const sandboxProxy = new Proxy(window, {
                         has: (target, prop) => true, // Trap everything
                         get: (target, prop) => {
-                            // Allow access to real globals
-                            if (prop in target) return target[prop];
+                            // Explicit React/ReactDOM
                             if (prop === 'React') return window.React;
                             if (prop === 'ReactDOM') return window.ReactDOM;
+                            
                             // Check Framer Motion (they're on window.Motion)
                             if (window.Motion && prop in window.Motion) {
                                 return window.Motion[prop];
@@ -144,6 +144,17 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
                             if (window.PhosphorIcons && prop in window.PhosphorIcons) {
                                 return window.PhosphorIcons[prop];
                             }
+                            
+                            // Allow access to real globals - BIND FUNCTIONS to window
+                            if (prop in target) {
+                                const val = target[prop];
+                                // If it's a function, bind it to window to avoid "Illegal invocation"
+                                if (typeof val === 'function') {
+                                    return val.bind(window);
+                                }
+                                return val;
+                            }
+                            
                             // Return stub for anything else (missing imports)
                             return window.__IconStub;
                         }
