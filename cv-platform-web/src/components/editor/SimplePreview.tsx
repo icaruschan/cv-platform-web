@@ -40,9 +40,9 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portfolio Preview</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -50,32 +50,63 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; background-color: #0f172a; color: white; }
         ${cssContent}
-        #error-display { display: none; padding: 20px; color: #ef4444; background: #1f1212; font-family: monospace; white-space: pre-wrap; }
+        #error-display { display: none; padding: 20px; color: #ef4444; background: #1f1212; font-family: monospace; white-space: pre-wrap; border-bottom: 1px solid #333; }
     </style>
-    <script>
-        window.onerror = function(msg, url, line, col, error) {
-            const display = document.getElementById('error-display');
-            if (display) {
-                display.style.display = 'block';
-                display.innerHTML = '<h3>Runtime Error</h3>' + msg + '<br>Line: ' + line + '<br>Col: ' + col + '<br>' + (error ? error.stack : '');
-            }
-        };
-    </script>
 </head>
 <body>
     <div id="error-display"></div>
     <div id="root"></div>
-    <script type="text/babel" data-presets="react,typescript">
-        try {
-            ${generateComponentCode(componentFiles, appCode)}
-        } catch (err) {
+    <script>
+        // Error handler
+        function showError(title, err) {
             const display = document.getElementById('error-display');
             if (display) {
                 display.style.display = 'block';
-                display.innerHTML = '<h3>Render Error</h3>' + err.message + '<br>' + err.stack;
+                display.innerHTML += '<h3>' + title + '</h3>' + (err.message || err) + '<br>' + (err.stack || '') + '<hr>';
             }
-            console.error(err);
+            console.error(title, err);
         }
+
+        window.onerror = function(msg, url, line, col, error) {
+            showError('Global Runtime Error', error || msg);
+            return false;
+        };
+
+        // Main execution
+        window.addEventListener('load', function() {
+            try {
+                // Check libs
+                if (typeof React === 'undefined') throw new Error('React not loaded');
+                if (typeof ReactDOM === 'undefined') throw new Error('ReactDOM not loaded');
+                if (typeof Babel === 'undefined') throw new Error('Babel not loaded');
+
+                // Source code
+                const code = \`${generateComponentCode(componentFiles, appCode).replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`;
+                
+                // Compile
+                let compiled;
+                try {
+                    compiled = Babel.transform(code, { 
+                        presets: ['react', ['env', { modules: false }]],
+                        filename: 'app.tsx'
+                    }).code;
+                } catch (e) {
+                    showError('Compilation Error (Syntax)', e);
+                    return;
+                }
+
+                // Execute
+                try {
+                    // Create a function to run the code
+                    new Function(compiled)();
+                } catch (e) {
+                    showError('Execution Error', e);
+                }
+
+            } catch (err) {
+                showError('Setup Error', err);
+            }
+        });
     </script>
 </body>
 </html>`;
