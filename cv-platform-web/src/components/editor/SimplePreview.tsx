@@ -98,39 +98,59 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
 
 // Helper function to generate component code
 function generateComponentCode(components: Record<string, string>, appCode: string): string {
+    // Collect all imports to generate stubs
+    const allImports = new Set<string>();
+
+    // Analyze imports from all files
+    [appCode, ...Object.values(components)].forEach(code => {
+        const matches = code.matchAll(/import\s+{([^}]+)}\s+from\s+['"]lucide-react['"]/g);
+        for (const match of matches) {
+            match[1].split(',').forEach(i => allImports.add(i.trim()));
+        }
+    });
+
+    // Generate Icon stubs
+    const iconStubs = Array.from(allImports).map(name => `
+        const ${name} = (props) => React.createElement('svg', { ...props, width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }, 
+            React.createElement('rect', { x: 3, y: 3, width: 18, height: 18, rx: 2 })
+        );
+    `).join('\n');
+
     // Create simple stub components for any imports that we can't resolve
-    const stubComponents = ['Hero', 'About', 'Skills', 'Projects', 'Contact', 'Footer', 'Header', 'Navigation']
+    const stubComponents = ['Hero', 'About', 'Skills', 'Projects', 'Contact', 'Footer', 'Header', 'Navigation', 'Feature']
         .map(name => {
             if (components[name]) {
-                // Clean up the component code for browser use
                 return cleanComponentCode(components[name], name);
             }
-            // Create a placeholder
-            return `
-                function ${name}() {
-                    return React.createElement('section', { 
-                        className: 'py-20 px-6 text-center' 
-                    }, React.createElement('h2', { 
-                        className: 'text-2xl font-bold' 
-                    }, '${name} Section'));
-                }
-            `;
+            // Create a placeholder if not found but referenced
+            // Only strictly needed if we can't find it, but Babel might complain if we don't define potential deps.
+            // For now relying on the loop above which only defines what's in components
+            return '';
         })
+        .filter(Boolean)
         .join('\n\n');
 
     // Clean up App code
     const cleanedApp = cleanAppCode(appCode);
 
     return `
-        // Stub hooks
+        // Stub hooks/libs
         const useVisualEditing = () => {};
-        const motion = { div: 'div', section: 'section', h1: 'h1', p: 'p', a: 'a', span: 'span' };
+        const motion = new Proxy({}, {
+            get: (target, prop) => (props) => React.createElement(prop || 'div', props)
+        });
+        const AnimatePresence = ({ children }) => children;
         
+        // Icon Stubs
+        ${iconStubs}
+
+        // Components
         ${stubComponents}
         
+        // App
         ${cleanedApp}
         
-        // Render the app
+        // Render
         const container = document.getElementById('root');
         const root = ReactDOM.createRoot(container);
         root.render(React.createElement(App));
@@ -144,7 +164,6 @@ function cleanComponentCode(code: string, componentName: string): string {
     cleaned = cleaned.replace(/export\s+default\s+/g, '');
     // Remove 'use client'
     cleaned = cleaned.replace(/'use client';?/g, '');
-    // Replace JSX with createElement calls (basic transformation)
     return cleaned;
 }
 
