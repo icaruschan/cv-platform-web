@@ -66,7 +66,6 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/framer-motion@11.0.8/dist/framer-motion.js" crossorigin="anonymous"></script>
-    <script src="https://unpkg.com/@phosphor-icons/react@2.1.7/dist/index.umd.js" crossorigin="anonymous"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -236,6 +235,20 @@ function generateComponentCode(components: Record<string, string>, appCode: stri
         // Lucide Proxy
         window.LucideReact = new Proxy({}, {
             get: (target, prop) => IconStub
+        });
+
+        // Phosphor Icons Proxy - No UMD bundle exists, so we create icon stubs
+        window.PhosphorIcons = new Proxy({}, {
+            get: (target, prop) => {
+                // Return an icon component for any requested icon name
+                return (props) => React.createElement('svg', { 
+                    ...props, 
+                    width: props.size || 24, 
+                    height: props.size || 24, 
+                    viewBox: '0 0 256 256', 
+                    fill: 'currentColor'
+                }, React.createElement('circle', { cx: 128, cy: 128, r: 96, fill: 'none', stroke: 'currentColor', strokeWidth: 16 }));
+            }
         });
 
         // Framer Motion - Use the REAL CDN-loaded library (window.Motion)
