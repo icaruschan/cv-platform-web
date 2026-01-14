@@ -48,14 +48,34 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', system-ui, sans-serif; }
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: #0f172a; color: white; }
         ${cssContent}
+        #error-display { display: none; padding: 20px; color: #ef4444; background: #1f1212; font-family: monospace; white-space: pre-wrap; }
     </style>
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            const display = document.getElementById('error-display');
+            if (display) {
+                display.style.display = 'block';
+                display.innerHTML = '<h3>Runtime Error</h3>' + msg + '<br>Line: ' + line + '<br>Col: ' + col + '<br>' + (error ? error.stack : '');
+            }
+        };
+    </script>
 </head>
 <body>
+    <div id="error-display"></div>
     <div id="root"></div>
     <script type="text/babel" data-presets="react,typescript">
-        ${generateComponentCode(componentFiles, appCode)}
+        try {
+            ${generateComponentCode(componentFiles, appCode)}
+        } catch (err) {
+            const display = document.getElementById('error-display');
+            if (display) {
+                display.style.display = 'block';
+                display.innerHTML = '<h3>Render Error</h3>' + err.message + '<br>' + err.stack;
+            }
+            console.error(err);
+        }
     </script>
 </body>
 </html>`;
