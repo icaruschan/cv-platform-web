@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 interface EditorLayoutProps {
     sidebar: ReactNode;
     canvas: ReactNode;
+    codeView?: ReactNode;
     projectName?: string;
     status?: 'draft' | 'generating' | 'ready' | 'error';
 }
@@ -13,10 +14,12 @@ interface EditorLayoutProps {
 export default function EditorLayout({
     sidebar,
     canvas,
+    codeView,
     projectName = 'Untitled Project',
     status = 'draft'
 }: EditorLayoutProps) {
     const [sidebarWidth] = useState(320);
+    const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview');
 
     const statusConfig = {
         draft: { label: 'Draft', color: 'bg-gray-400' },
@@ -44,12 +47,24 @@ export default function EditorLayout({
                     </div>
                 </div>
 
-                {/* Center: Preview Controls (Placeholder) */}
+                {/* Center: Preview/Code Toggle */}
                 <div className="flex items-center gap-1 pill-container px-1 py-1">
-                    <button className="px-4 py-1.5 text-sm font-medium rounded-full bg-[var(--foreground)] text-white">
+                    <button
+                        onClick={() => setViewMode('preview')}
+                        className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${viewMode === 'preview'
+                                ? 'bg-[var(--foreground)] text-white'
+                                : 'text-[var(--text-secondary)] hover:bg-[var(--background-tertiary)]'
+                            }`}
+                    >
                         Preview
                     </button>
-                    <button className="px-4 py-1.5 text-sm font-medium rounded-full text-[var(--text-secondary)] hover:bg-[var(--background-tertiary)] transition-colors">
+                    <button
+                        onClick={() => setViewMode('code')}
+                        className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${viewMode === 'code'
+                                ? 'bg-[var(--foreground)] text-white'
+                                : 'text-[var(--text-secondary)] hover:bg-[var(--background-tertiary)]'
+                            }`}
+                    >
                         Code
                     </button>
                 </div>
@@ -80,11 +95,21 @@ export default function EditorLayout({
                     {sidebar}
                 </motion.aside>
 
-                {/* Right Canvas (The Preview) */}
+                {/* Right Canvas (The Preview or Code View) */}
                 <main className="flex-1 bg-[var(--background)] overflow-hidden flex flex-col">
-                    {canvas}
+                    {viewMode === 'preview' ? canvas : (codeView || <CodeViewFallback />)}
                 </main>
             </div>
         </div>
     );
 }
+
+// Simple fallback for when no code view is provided
+function CodeViewFallback() {
+    return (
+        <div className="flex-1 flex items-center justify-center text-[var(--text-secondary)]">
+            <p>Code view not available</p>
+        </div>
+    );
+}
+

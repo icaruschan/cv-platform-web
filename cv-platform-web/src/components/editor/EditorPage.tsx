@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import SimplePreview from './SimplePreview';
+import CodeView from './CodeView';
 import CanvasArea from './CanvasArea';
 import EditorLayout from './EditorLayout';
 import ChatSidebar from './ChatSidebar';
@@ -386,6 +387,7 @@ body {
         <EditorLayout
             sidebar={sidebarContent}
             canvas={canvasContent}
+            codeView={<CodeView files={sandpackFiles} />}
             projectName={`Project ${project.id.slice(0, 8)}`}
             status={status}
         />
