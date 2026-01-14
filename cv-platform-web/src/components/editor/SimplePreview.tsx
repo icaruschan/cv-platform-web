@@ -296,14 +296,14 @@ function cleanComponentCode(code: string, componentName: string): string {
     cleaned = cleaned.replace(/import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]framer-motion['"];?/g, 'const { $1 } = window.FramerMotion;');
     cleaned = cleaned.replace(/import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]@phosphor-icons\/react['"];?/g, 'const { $1 } = window.PhosphorIcons;');
 
-    // Remove other imports (CSS imports, relative imports, etc.)
+    // Remove other imports (CSS imports, relative imports, etc.) - match per line only
     cleaned = cleaned.replace(/import\s*\{[^}]*\}\s*from\s*['"][^'"]+['"];?/g, '');
-    cleaned = cleaned.replace(/import\s+[^;]+;?/g, '');
+    cleaned = cleaned.replace(/^\s*import\s+[^\n;]+;?\s*$/gm, '');
 
     // Handle exports
     cleaned = cleaned.replace(/export\s+default\s+function\s+([a-zA-Z0-9_]+)/g, 'function $1');
     cleaned = cleaned.replace(/export\s+default\s+class\s+([a-zA-Z0-9_]+)/g, 'class $1');
-    cleaned = cleaned.replace(/export\s+default\s+[^;]+;?/g, '');
+    cleaned = cleaned.replace(/^\s*export\s+default\s+[^\n;]+;?\s*$/gm, '');
 
     cleaned = cleaned.replace(/'use client';?/g, '');
 
@@ -323,13 +323,13 @@ function cleanAppCode(code: string): string {
     cleaned = cleaned.replace(/import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]framer-motion['"];?/g, 'const { $1 } = window.FramerMotion;');
     cleaned = cleaned.replace(/import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]@phosphor-icons\/react['"];?/g, 'const { $1 } = window.PhosphorIcons;');
 
-    // Remove other imports (CSS imports, relative imports, etc.)
+    // Remove other imports (CSS imports, relative imports, etc.) - match per line only
     cleaned = cleaned.replace(/import\s*\{[^}]*\}\s*from\s*['"][^'"]+['"];?/g, '');
-    cleaned = cleaned.replace(/import\s+[^;]+;?/g, '');
+    cleaned = cleaned.replace(/^\s*import\s+[^\n;]+;?\s*$/gm, '');
 
     // Handle exports
     cleaned = cleaned.replace(/export\s+default\s+function\s+([a-zA-Z0-9_]+)/g, 'function $1');
-    cleaned = cleaned.replace(/export\s+default\s+[^;]+;?/g, '');
+    cleaned = cleaned.replace(/^\s*export\s+default\s+[^\n;]+;?\s*$/gm, '');
 
     cleaned = cleaned.replace(/'use client';?/g, '');
     return cleaned;
