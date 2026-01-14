@@ -290,6 +290,7 @@ function cleanComponentCode(code: string, componentName: string): string {
     let cleaned = code;
 
     // Transform known libraries to global proxies
+    cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]react['"];?/g, 'const $1 = React;');
     cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]lucide-react['"];?/g, 'const $1 = window.LucideReact;');
     cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]framer-motion['"];?/g, 'const $1 = window.FramerMotion;');
     cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]@phosphor-icons\/react['"];?/g, 'const $1 = window.PhosphorIcons;');
@@ -316,9 +317,10 @@ function cleanAppCode(code: string): string {
     let cleaned = code;
 
     // Transform known libraries
-    cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]lucide-react['"];?/g, 'const $1 = window.LucideReact;');
-    cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]framer-motion['"];?/g, 'const $1 = window.FramerMotion;');
-    cleaned = cleaned.replace(/import\s+({[\s\S]*?})\s+from\s+['"]@phosphor-icons\/react['"];?/g, 'const $1 = window.PhosphorIcons;');
+    cleaned = cleaned.replace(/import\s+({\s*[\s\S]*?})\s+from\s+['"]react['"];?/g, 'const $1 = React;');
+    cleaned = cleaned.replace(/import\s+({\s*[\s\S]*?})\s+from\s+['"]lucide-react['"];?/g, 'const $1 = window.LucideReact;');
+    cleaned = cleaned.replace(/import\s+({\s*[\s\S]*?})\s+from\s+['"]framer-motion['"];?/g, 'const $1 = window.FramerMotion;');
+    cleaned = cleaned.replace(/import\s+({\s*[\s\S]*?})\s+from\s+['"]@phosphor-icons\/react['"];?/g, 'const $1 = window.PhosphorIcons;');
 
     // Remove other imports
     cleaned = cleaned.replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?/g, '');
