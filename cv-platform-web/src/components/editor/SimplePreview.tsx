@@ -128,6 +128,15 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
 
                 // Execute with Proxy Sandbox
                 try {
+                    // Methods that need window as 'this' to avoid "Illegal invocation"
+                    const needsWindowContext = new Set([
+                        'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout',
+                        'requestAnimationFrame', 'cancelAnimationFrame',
+                        'fetch', 'alert', 'confirm', 'prompt',
+                        'getComputedStyle', 'matchMedia', 'open', 'close',
+                        'addEventListener', 'removeEventListener', 'dispatchEvent'
+                    ]);
+                    
                     // Create a proxy to catch all undefined variables
                     const sandboxProxy = new Proxy(window, {
                         has: (target, prop) => true, // Trap everything
@@ -145,11 +154,11 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
                                 return window.PhosphorIcons[prop];
                             }
                             
-                            // Allow access to real globals - BIND FUNCTIONS to window
+                            // Allow access to real globals
                             if (prop in target) {
                                 const val = target[prop];
-                                // If it's a function, bind it to window to avoid "Illegal invocation"
-                                if (typeof val === 'function') {
+                                // Only bind functions that NEED window context (browser APIs)
+                                if (typeof val === 'function' && needsWindowContext.has(prop)) {
                                     return val.bind(window);
                                 }
                                 return val;
