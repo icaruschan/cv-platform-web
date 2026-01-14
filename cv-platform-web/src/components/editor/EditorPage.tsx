@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import StackBlitzPreview from './StackBlitzPreview';
+import SimplePreview from './SimplePreview';
 import CanvasArea from './CanvasArea';
 import EditorLayout from './EditorLayout';
 import ChatSidebar from './ChatSidebar';
@@ -378,7 +378,7 @@ body {
         <WaitingRoom status="building" message="No files yet. Start a conversation!" />
     ) : (
         <div className="h-full w-full">
-            <StackBlitzPreview files={sandpackFiles} />
+            <SimplePreview files={sandpackFiles} />
         </div>
     );
 
