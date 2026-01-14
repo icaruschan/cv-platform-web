@@ -186,9 +186,9 @@ function generateComponentCode(components: Record<string, string>, appCode: stri
 
     return `
         // Check libraries
-        if (typeof React === 'undefined') throw new Error('React failed to load');
-        if (typeof ReactDOM === 'undefined') throw new Error('ReactDOM failed to load');
-        if (typeof Babel === 'undefined') throw new Error('Babel failed to load');
+        if (typeof React === 'undefined') throw new Error('React not loaded');
+        if (typeof ReactDOM === 'undefined') throw new Error('ReactDOM not loaded');
+        if (typeof Babel === 'undefined') throw new Error('Babel not loaded');
 
         // Stub hooks/libs
         const useVisualEditing = () => {};
@@ -204,7 +204,10 @@ function generateComponentCode(components: Record<string, string>, appCode: stri
         ${stubComponents}
         
         // App
-        ${cleanedApp}
+        const App = (() => {
+            ${cleanedApp}
+            return App;
+        })();
         
         // Render
         const container = document.getElementById('root');
@@ -216,23 +219,32 @@ function generateComponentCode(components: Record<string, string>, appCode: stri
 function cleanComponentCode(code: string, componentName: string): string {
     // Remove imports (including multi-line)
     let cleaned = code.replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?/g, '');
-    // Remove side-effect imports like import './style.css';
+    // Remove side-effect imports
     cleaned = cleaned.replace(/import\s+['"][^'"]+['"];?/g, '');
-    // Remove export default  
-    cleaned = cleaned.replace(/export\s+default\s+/g, '');
+    // Remove export default from main definition
+    cleaned = cleaned.replace(/export\s+default\s+function\s+([a-zA-Z0-9_]+)/g, 'function $1');
+    cleaned = cleaned.replace(/export\s+default\s+class\s+([a-zA-Z0-9_]+)/g, 'class $1');
+    // Remove standalone export default
+    cleaned = cleaned.replace(/export\s+default\s+[^;]+;?/g, '');
     // Remove 'use client'
     cleaned = cleaned.replace(/'use client';?/g, '');
-    return cleaned;
+
+    // Wrap in IIFE to prevent scope pollution
+    return `const ${componentName} = (() => {
+        ${cleaned}
+        return ${componentName};
+    })();`;
 }
 
 function cleanAppCode(code: string): string {
-    // Remove imports (including multi-line)
+    // Remove imports
     let cleaned = code.replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?/g, '');
-    // Remove side-effect imports
     cleaned = cleaned.replace(/import\s+['"][^'"]+['"];?/g, '');
-    // Remove export default
-    cleaned = cleaned.replace(/export\s+default\s+/g, '');
-    // Remove 'use client'
+
+    // Handle exports
+    cleaned = cleaned.replace(/export\s+default\s+function\s+([a-zA-Z0-9_]+)/g, 'function $1');
+    cleaned = cleaned.replace(/export\s+default\s+[^;]+;?/g, '');
+
     cleaned = cleaned.replace(/'use client';?/g, '');
     return cleaned;
 }
