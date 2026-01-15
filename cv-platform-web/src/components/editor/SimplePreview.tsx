@@ -69,6 +69,8 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/bold/style.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; background-color: #0f172a; color: white; }
@@ -257,17 +259,25 @@ function generateComponentCode(components: Record<string, string>, appCode: stri
             get: (target, prop) => IconStub
         });
 
-        // Phosphor Icons Proxy - No UMD bundle exists, so we create icon stubs
+        // Phosphor Icons Proxy - Uses icon font with <i> tags
+        // Converts PascalCase icon names to kebab-case (ArrowDown -> arrow-down)
         window.PhosphorIcons = new Proxy({}, {
             get: (target, prop) => {
-                // Return an icon component for any requested icon name
-                return (props) => React.createElement('svg', { 
-                    ...props, 
-                    width: props.size || 24, 
-                    height: props.size || 24, 
-                    viewBox: '0 0 256 256', 
-                    fill: 'currentColor'
-                }, React.createElement('circle', { cx: 128, cy: 128, r: 96, fill: 'none', stroke: 'currentColor', strokeWidth: 16 }));
+                // Convert PascalCase to kebab-case: ArrowDown -> arrow-down
+                const iconName = String(prop).replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
+                
+                return (props = {}) => {
+                    const { size = 24, weight = 'regular', className = '', style = {}, ...rest } = props;
+                    const weightClass = weight === 'regular' ? 'ph' : 'ph-' + weight;
+                    const iconClass = 'ph-' + iconName;
+                    
+                    return React.createElement('i', {
+                        className: weightClass + ' ' + iconClass + (className ? ' ' + className : ''),
+                        style: { fontSize: size + 'px', ...style },
+                        'aria-hidden': 'true',
+                        ...rest
+                    });
+                };
             }
         });
 
