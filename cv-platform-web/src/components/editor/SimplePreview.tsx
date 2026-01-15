@@ -6,6 +6,72 @@ interface SimplePreviewProps {
     files: Record<string, string>;
 }
 
+// Helper function to extract Google Font names from CSS
+function extractFontsFromCSS(css: string): string[] {
+    const fonts = new Set<string>();
+
+    // 1. Extract fonts from @import url('https://fonts.googleapis.com/css2?family=...')
+    const importMatches = css.matchAll(/@import\s+url\(['"]?https:\/\/fonts\.googleapis\.com\/css2\?([^'")\s]+)['"]?\)/g);
+    for (const match of importMatches) {
+        const params = match[1];
+        const familyMatches = params.matchAll(/family=([^&:+]+)/g);
+        for (const fam of familyMatches) {
+            // Convert URL-encoded font name: Playfair+Display -> Playfair Display
+            fonts.add(decodeURIComponent(fam[1].replace(/\+/g, ' ')));
+        }
+    }
+
+    // 2. Extract fonts from font-family declarations (common Google Fonts)
+    const fontFamilyMatches = css.matchAll(/font-family:\s*['"]?([^;'"]+)/g);
+    const popularGoogleFonts = [
+        'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'Playfair Display',
+        'Source Sans Pro', 'Raleway', 'Nunito', 'Ubuntu', 'Merriweather', 'PT Sans', 'Rubik',
+        'Work Sans', 'Outfit', 'Space Grotesk', 'DM Sans', 'Manrope', 'Sora', 'Lexend',
+        'JetBrains Mono', 'Fira Code', 'Space Mono', 'IBM Plex Mono', 'Source Code Pro',
+        'Libre Baskerville', 'Cormorant Garamond', 'EB Garamond', 'Crimson Text', 'Lora',
+        'Plus Jakarta Sans', 'Archivo', 'Barlow', 'Titillium Web', 'Oswald', 'Bebas Neue'
+    ];
+
+    for (const match of fontFamilyMatches) {
+        const fontList = match[1].split(',').map(f => f.trim().replace(/['"]/g, ''));
+        for (const font of fontList) {
+            if (popularGoogleFonts.some(gf => font.toLowerCase() === gf.toLowerCase())) {
+                fonts.add(font);
+            }
+        }
+    }
+
+    // 3. Extract from CSS variable definitions: --font-heading: 'Playfair Display', serif;
+    const varMatches = css.matchAll(/--font-[\w-]+:\s*['"]?([^;'"]+)/g);
+    for (const match of varMatches) {
+        const fontList = match[1].split(',').map(f => f.trim().replace(/['"]/g, ''));
+        for (const font of fontList) {
+            if (popularGoogleFonts.some(gf => font.toLowerCase() === gf.toLowerCase())) {
+                fonts.add(font);
+            }
+        }
+    }
+
+    // Always include fallback fonts
+    fonts.add('Inter');
+    fonts.add('JetBrains Mono');
+
+    return Array.from(fonts);
+}
+
+// Build Google Fonts URL from font list
+function buildGoogleFontsUrl(fonts: string[]): string {
+    const families = fonts.map(font => {
+        const encoded = font.replace(/ /g, '+');
+        // Add common weights for each font
+        if (font.toLowerCase().includes('mono')) {
+            return `family=${encoded}:wght@400;500;600`;
+        }
+        return `family=${encoded}:wght@300;400;500;600;700;800`;
+    });
+    return `https://fonts.googleapis.com/css2?${families.join('&')}&display=swap`;
+}
+
 export default function SimplePreview({ files }: SimplePreviewProps) {
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -19,6 +85,10 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
         if (cssFile) {
             cssContent = cssFile;
         }
+
+        // Extract fonts from CSS and build dynamic Google Fonts URL
+        const detectedFonts = extractFontsFromCSS(cssContent);
+        const googleFontsUrl = buildGoogleFontsUrl(detectedFonts);
 
         // Get the App component code
         const appCode = files['/src/App.tsx'] || files['src/App.tsx'] || '';
@@ -68,7 +138,7 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
     <script src="https://unpkg.com/framer-motion@11.0.8/dist/framer-motion.js" crossorigin="anonymous"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="${googleFontsUrl}" rel="stylesheet">
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css" />
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/bold/style.css" />
     <style>

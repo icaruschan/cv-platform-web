@@ -80,7 +80,7 @@ This document is injected into every AI code generation prompt to prevent common
 | ❌ NEVER | ✅ ALWAYS |
 |----------|-----------|
 | Interactive components without \`'use client'\` | Add \`'use client'\` at top of file for any hooks/events |
-| Import Google Fonts via \`<style>\` or \`<link>\` | Use \`var(--font-heading)\` and \`var(--font-body)\` variables only |
+| Import Google Fonts via \`<style>\` or \`<link>\` in components | Use \`@import url('https://fonts.googleapis.com/...')\` in index.css only |
 | Use \`<a>\` for internal navigation | Use Next.js \`<Link>\` component |
 | Use \`<img>\` tag | Use Next.js \`<Image>\` component with width/height |
 | Async component without Suspense boundary | Wrap dynamic imports in \`<Suspense>\` |
