@@ -548,28 +548,22 @@ export function detectErrors(files: GeneratedFile[]): ValidationError[] {
             });
         }
 
-        // ==== Phosphor Icons usage (informational) ====
-        if (file.content.includes('@phosphor-icons/react') || file.content.match(/from ['""]@phosphor-icons/)) {
-            errors.push({
-                file: file.path,
-                message: "Uses Phosphor Icons - will render via icon font in preview",
-                fixable: false, // Informational only
-            });
-        }
-
-        // ==== Lucide React icons without import ====
-        const lucideIconPattern = /\b(ArrowRight|ArrowLeft|ArrowDown|ArrowUp|Mail|ExternalLink|Check|X|Menu|ChevronDown|ChevronRight|Github|Linkedin|Twitter|User|Phone|MapPin|Calendar|Clock|Star)\b/g;
-        const lucideIcons = file.content.match(lucideIconPattern) || [];
-        const uniqueLucideIcons = [...new Set(lucideIcons)];
-        if (uniqueLucideIcons.length > 0 && !file.content.includes("from 'lucide-react'") && !file.content.includes('from "lucide-react"')) {
+        // ==== Phosphor Icons usage without import ====
+        // Common Phosphor icon names (PascalCase)
+        const phosphorIconPattern = /\b(ArrowRight|ArrowLeft|ArrowDown|ArrowUp|Envelope|EnvelopeSimple|TwitterLogo|LinkedinLogo|GithubLogo|InstagramLogo|FacebookLogo|CaretDown|CaretRight|CaretUp|CaretLeft|X|XCircle|Check|CheckCircle|User|Phone|MapPin|Calendar|Clock|Star|House|Gear|MagnifyingGlass|Plus|Minus|PencilSimple|Trash|Eye|EyeSlash|Heart|Share|Link|ExternalLink|Download|Upload)\b/g;
+        const phosphorIcons = file.content.match(phosphorIconPattern) || [];
+        const uniquePhosphorIcons = [...new Set(phosphorIcons)];
+        if (uniquePhosphorIcons.length > 0 &&
+            !file.content.includes("from '@phosphor-icons/react'") &&
+            !file.content.includes('from "@phosphor-icons/react"')) {
             // Check if they're actually being used as JSX components
-            const usedAsJsx = uniqueLucideIcons.filter(icon =>
+            const usedAsJsx = uniquePhosphorIcons.filter(icon =>
                 new RegExp(`<${icon}[\\s/>]`).test(file.content)
             );
             if (usedAsJsx.length > 0) {
                 errors.push({
                     file: file.path,
-                    message: `Using Lucide icons (${usedAsJsx.join(', ')}) without importing from 'lucide-react'`,
+                    message: `Using Phosphor icons (${usedAsJsx.join(', ')}) without importing from '@phosphor-icons/react'`,
                     fixable: true,
                 });
             }
@@ -698,25 +692,26 @@ export function autoFixErrors(files: GeneratedFile[], errors: ValidationError[])
                 }
             }
 
-            // ==== Fix missing Lucide icons imports ====
-            if (error.message.includes("Lucide icons") && error.message.includes("without importing")) {
+            // ==== Fix missing Phosphor icons imports ====
+            if (error.message.includes("Phosphor icons") && error.message.includes("without importing")) {
                 const match = error.message.match(/\(([^)]+)\)/);
                 if (match) {
                     const icons = match[1].split(',').map(s => s.trim());
-                    if (content.includes("from 'lucide-react'") || content.includes('from "lucide-react"')) {
+                    if (content.includes("from '@phosphor-icons/react'") || content.includes('from "@phosphor-icons/react"')) {
                         content = content.replace(
-                            /import\s*\{([^}]*)\}\s*from\s*['"]lucide-react['"]/,
+                            /import\s*\{([^}]*)\}\s*from\s*['"]@phosphor-icons\/react['"]/,
                             (match, imports) => {
                                 const existingImports = imports.split(',').map((i: string) => i.trim()).filter(Boolean);
                                 const newImports = [...new Set([...existingImports, ...icons])];
-                                return `import { ${newImports.join(', ')} } from 'lucide-react'`;
+                                return `import { ${newImports.join(', ')} } from '@phosphor-icons/react'`;
                             }
                         );
                     } else {
-                        content = `import { ${icons.join(', ')} } from 'lucide-react';\n` + content;
+                        content = `import { ${icons.join(', ')} } from '@phosphor-icons/react';\n` + content;
                     }
                 }
             }
+
 
             // ==== Fix malformed destructuring ====
             if (error.message.includes("Malformed destructuring")) {
