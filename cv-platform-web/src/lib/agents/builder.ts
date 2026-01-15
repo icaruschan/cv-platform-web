@@ -255,6 +255,12 @@ These rules are NON-NEGOTIABLE. Violating any of them will result in a failed ge
 
 4. **DATA INTEGRITY**: Use ONLY the provided data below. Do NOT invent any content.
 
+5. **MANDATORY CONTENT** (These MUST exist regardless of style):
+   - **Profile Image**: MUST appear in Hero or About section using the provided URL
+   - **Project Visuals**: Each project card MUST have an image or gradient placeholder
+   - **Contact CTA**: MUST have a visible primary button with working mailto: link
+   - **Social Icons**: MUST show icons for all provided social handles
+
 ---
 
 ## 🎯 DATA ANCHOR (This Portfolio Is For)
@@ -655,15 +661,60 @@ export function detectErrors(files: GeneratedFile[]): ValidationError[] {
         }
     }
 
-    // ==== Check for missing profile image (if About component exists but no image) ====
+    // ==== REQUIREMENTS LAYER VALIDATION ====
+    // Check for mandatory elements that should exist regardless of style
+
+    // 1. Profile Image Check (Hero or About)
+    const heroFile = files.find(f => f.path.includes('Hero'));
     const aboutFile = files.find(f => f.path.includes('About'));
-    if (aboutFile && !aboutFile.content.includes('<img') && !aboutFile.content.includes('profileImage')) {
-        // Informational - profile image might be intentionally omitted based on style
+    const hasProfileImageInHero = heroFile && (heroFile.content.includes('<img') || heroFile.content.includes('profileImage'));
+    const hasProfileImageInAbout = aboutFile && (aboutFile.content.includes('<img') || aboutFile.content.includes('profileImage'));
+
+    if (!hasProfileImageInHero && !hasProfileImageInAbout) {
         errors.push({
-            file: aboutFile.path,
-            message: "About component has no profile image - consider adding one for personalization",
+            file: aboutFile?.path || heroFile?.path || '/src/App.tsx',
+            message: "⚠️ REQUIREMENT: Profile image missing from Hero and About sections",
             fixable: false,
         });
+    }
+
+    // 2. Project Visuals Check
+    const projectsFile = files.find(f => f.path.includes('Projects') || f.path.includes('Work'));
+    if (projectsFile) {
+        // Check if projects have images or gradient placeholders
+        const hasProjectImages = projectsFile.content.includes('<img') ||
+            projectsFile.content.includes('background') ||
+            projectsFile.content.includes('gradient');
+        if (!hasProjectImages) {
+            errors.push({
+                file: projectsFile.path,
+                message: "⚠️ REQUIREMENT: Projects section has no visual elements (images or placeholders)",
+                fixable: false,
+            });
+        }
+    }
+
+    // 3. Contact CTA Check
+    const contactFile = files.find(f => f.path.includes('Contact'));
+    if (contactFile) {
+        const hasMailtoLink = contactFile.content.includes('mailto:');
+        const hasCtaButton = contactFile.content.includes('<button') ||
+            (contactFile.content.includes('<a') && contactFile.content.includes('mailto:'));
+
+        if (!hasMailtoLink) {
+            errors.push({
+                file: contactFile.path,
+                message: "⚠️ REQUIREMENT: Contact section missing mailto: link for email",
+                fixable: false,
+            });
+        }
+        if (!hasCtaButton && !hasMailtoLink) {
+            errors.push({
+                file: contactFile.path,
+                message: "⚠️ REQUIREMENT: Contact section missing CTA button",
+                fixable: false,
+            });
+        }
     }
 
     return errors;

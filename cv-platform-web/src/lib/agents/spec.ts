@@ -33,6 +33,40 @@ interface Section {
 }
 
 // ============================================================================
+// MANDATORY REQUIREMENTS (Override moodboard style)
+// ============================================================================
+
+const MANDATORY_REQUIREMENTS = `
+## ⚠️ NON-NEGOTIABLE REQUIREMENTS
+These requirements MUST be met regardless of the style guide or moodboard aesthetics:
+
+### 1. PROFILE IMAGE (Required)
+- The Hero OR About section MUST include the profile image
+- Use the provided profile image URL - NEVER omit it
+- Style it according to the moodboard, but it MUST be visible
+- Acceptable: circular, rounded, full-width, overlapping, creative crops
+- NOT acceptable: text-only About section, placeholder initials, omitting entirely
+
+### 2. PROJECT VISUALS (Required)
+- Each project card MUST have a visual element (image, screenshot, or generated gradient placeholder)
+- NEVER create text-only project cards
+- If no image URL provided, use a stylized gradient or pattern as placeholder
+- The visual should be prominent, not a tiny thumbnail
+
+### 3. CONTACT CTA (Required)
+- Contact section MUST have a clearly visible primary CTA button
+- Email link MUST be a working mailto: link
+- Social icons MUST be visible for all provided handles
+- The CTA should stand out as the main conversion goal
+
+### 4. WCAG COMPLIANCE (Required)
+- All text must have minimum 4.5:1 contrast ratio
+- Interactive elements must have visible focus states
+- Never sacrifice accessibility for aesthetics
+`;
+
+
+// ============================================================================
 // MAIN EXPORT FUNCTION
 // ============================================================================
 
@@ -131,6 +165,8 @@ Your task is to generate TWO documents in a single response:
 
 ## STYLE GUIDE (Already defined):
 ${styleGuide}
+
+${MANDATORY_REQUIREMENTS}
 
 ## SECTIONS TO SPECIFY:
 ${sectionList}
