@@ -10,24 +10,37 @@ interface SandpackPreviewProps {
 }
 
 export default function SandpackPreview({ files, onLoad, onError }: SandpackPreviewProps) {
-    // Transform files for Sandpack format - use proper paths without leading slash for some
+    // Transform files for Sandpack format
     const sandpackFiles = useMemo(() => {
         if (Object.keys(files).length === 0) return null;
 
         const transformed: Record<string, { code: string; active?: boolean }> = {};
 
+        // Debug: Log incoming files
+        console.log('[SandpackPreview] Incoming files:', Object.keys(files));
+
         // Copy all files with proper path handling
         Object.entries(files).forEach(([path, content]) => {
-            // Sandpack expects paths without leading slash for most files
-            const cleanPath = path.startsWith('/') ? path : `/${path}`;
+            // Sandpack expects paths WITH leading slash
+            let cleanPath = path.startsWith('/') ? path : `/${path}`;
+
+            // Map component paths correctly
+            // If path is "components/Hero.tsx" -> "/components/Hero.tsx"
             transformed[cleanPath] = { code: content };
         });
 
-        // Ensure App.tsx is marked as main entry file
+        // Debug: Log transformed files
+        console.log('[SandpackPreview] Transformed files:', Object.keys(transformed));
+
+        // Ensure App.tsx exists and is the entry point
         if (transformed['/App.tsx']) {
             transformed['/App.tsx'].active = true;
+            console.log('[SandpackPreview] Found /App.tsx - setting as active');
         } else if (transformed['/src/App.tsx']) {
             transformed['/src/App.tsx'].active = true;
+            console.log('[SandpackPreview] Found /src/App.tsx - setting as active');
+        } else {
+            console.warn('[SandpackPreview] No App.tsx found! Available files:', Object.keys(transformed));
         }
 
         return transformed;
