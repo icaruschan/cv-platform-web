@@ -66,6 +66,7 @@ export default function SandpackPreview({ files, onLoad, onError }: SandpackPrev
                 files={sandpackFiles}
                 theme="dark"
                 customSetup={{
+                    entry: '/src/main.tsx',  // Use our Vite-style entry point
                     dependencies: {
                         'react': '^18.2.0',
                         'react-dom': '^18.2.0',
