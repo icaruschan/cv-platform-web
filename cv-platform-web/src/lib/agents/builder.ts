@@ -503,7 +503,12 @@ export function detectErrors(files: GeneratedFile[]): ValidationError[] {
     const errors: ValidationError[] = [];
 
     for (const file of files) {
-        // Check for Next.js imports in React/Vite project
+        // Skip non-code files
+        if (!file.path.endsWith('.tsx') && !file.path.endsWith('.ts')) {
+            continue;
+        }
+
+        // ==== Next.js imports (existing) ====
         if (file.content.includes("from 'next/") || file.content.includes('from "next/')) {
             errors.push({
                 file: file.path,
@@ -512,25 +517,108 @@ export function detectErrors(files: GeneratedFile[]): ValidationError[] {
             });
         }
 
-        // Check for use client (not needed in Vite usually, but harmless, good to clean though)
-        // Actually Vite supports "use client" for compatibility with some libs, but generally useless.
-        // We will strip it to be clean.
-        if (file.content.includes("'use client'") || file.content.includes('"use client"')) {
-            // Not a critical error, but we can clean it up
+        // ==== React hooks usage without imports ====
+        const reactHooks = ['useState', 'useEffect', 'useRef', 'useMemo', 'useCallback', 'useContext', 'useReducer', 'useLayoutEffect'];
+        const usedHooks = reactHooks.filter(hook =>
+            new RegExp(`\\b${hook}\\b`).test(file.content)
+        );
+        if (usedHooks.length > 0 && !file.content.includes("from 'react'") && !file.content.includes('from "react"')) {
+            errors.push({
+                file: file.path,
+                message: `Using React hooks (${usedHooks.join(', ')}) without importing from 'react'`,
+                fixable: true,
+            });
         }
 
-        // Check for missing React import
-        if (file.path.endsWith('.tsx') && !file.content.includes("import React") && !file.content.includes("from 'react'")) {
-            // React 17+ JSX transform handles this, but explicit is often safer for Sandpack
-        }
-
-        // Check for motion usage without import
-        if (file.content.includes('motion.') && !file.content.includes("from 'framer-motion'")) {
+        // ==== motion usage without import (existing, enhanced) ====
+        if (file.content.includes('motion.') && !file.content.includes("from 'framer-motion'") && !file.content.includes('from "framer-motion"')) {
             errors.push({
                 file: file.path,
                 message: "Using 'motion' without importing from 'framer-motion'",
                 fixable: true,
             });
+        }
+
+        // ==== AnimatePresence usage without import ====
+        if (file.content.includes('<AnimatePresence') && !file.content.includes("AnimatePresence") && !file.content.match(/import\s*\{[^}]*AnimatePresence[^}]*\}\s*from\s*['"]framer-motion['"]/)) {
+            errors.push({
+                file: file.path,
+                message: "Using 'AnimatePresence' without importing from 'framer-motion'",
+                fixable: true,
+            });
+        }
+
+        // ==== Phosphor Icons usage (informational) ====
+        if (file.content.includes('@phosphor-icons/react') || file.content.match(/from ['""]@phosphor-icons/)) {
+            errors.push({
+                file: file.path,
+                message: "Uses Phosphor Icons - will render via icon font in preview",
+                fixable: false, // Informational only
+            });
+        }
+
+        // ==== Lucide React icons without import ====
+        const lucideIconPattern = /\b(ArrowRight|ArrowLeft|ArrowDown|ArrowUp|Mail|ExternalLink|Check|X|Menu|ChevronDown|ChevronRight|Github|Linkedin|Twitter|User|Phone|MapPin|Calendar|Clock|Star)\b/g;
+        const lucideIcons = file.content.match(lucideIconPattern) || [];
+        const uniqueLucideIcons = [...new Set(lucideIcons)];
+        if (uniqueLucideIcons.length > 0 && !file.content.includes("from 'lucide-react'") && !file.content.includes('from "lucide-react"')) {
+            // Check if they're actually being used as JSX components
+            const usedAsJsx = uniqueLucideIcons.filter(icon =>
+                new RegExp(`<${icon}[\\s/>]`).test(file.content)
+            );
+            if (usedAsJsx.length > 0) {
+                errors.push({
+                    file: file.path,
+                    message: `Using Lucide icons (${usedAsJsx.join(', ')}) without importing from 'lucide-react'`,
+                    fixable: true,
+                });
+            }
+        }
+
+        // ==== Malformed destructuring: const { x } from 'module' ====
+        const malformedDestructure = file.content.match(/const\s*\{[^}]+\}\s+from\s+['"]/);
+        if (malformedDestructure) {
+            errors.push({
+                file: file.path,
+                message: "Malformed destructuring: 'const {...} from' should be 'import {...} from'",
+                fixable: true,
+            });
+        }
+
+        // ==== Syntax validation using Function constructor ====
+        try {
+            // Strip imports/exports and try to parse
+            const strippedCode = file.content
+                .replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?/g, '')
+                .replace(/export\s+(default\s+)?/g, '')
+                .replace(/export\s*\{[^}]*\};?/g, '');
+            new Function(strippedCode);
+        } catch (e: any) {
+            // Only report syntax errors, not reference errors
+            if (e.message && !e.message.includes('is not defined')) {
+                errors.push({
+                    file: file.path,
+                    message: `Potential syntax error: ${e.message.split('\n')[0]}`,
+                    fixable: false,
+                });
+            }
+        }
+
+        // ==== Check for empty component bodies ====
+        if (file.path.includes('/components/') && file.content.includes('export default function')) {
+            const returnMatch = file.content.match(/return\s*\(\s*\)/);
+            if (returnMatch) {
+                errors.push({
+                    file: file.path,
+                    message: "Component returns empty JSX - may cause blank render",
+                    fixable: false,
+                });
+            }
+        }
+
+        // ==== Check for 'use client' directive (cleanup, not error) ====
+        if (file.content.includes("'use client'") || file.content.includes('"use client"')) {
+            // Not an error in Vite, but we can clean it up silently
         }
     }
 
@@ -543,34 +631,110 @@ export function autoFixErrors(files: GeneratedFile[], errors: ValidationError[])
         const fileErrors = errors.filter(e => e.file === file.path && e.fixable);
 
         for (const error of fileErrors) {
-            // Remove Next.js Image
-            if (content.includes("from 'next/image'")) {
+            // ==== Remove Next.js Image ====
+            if (content.includes("from 'next/image'") || content.includes('from "next/image"')) {
                 content = content.replace(/import\s+Image\s+from\s+['"]next\/image['"];?\n?/g, '');
-                // Simple replace of <Image ... /> with <img ... />
-                // This is complex regex, simplistic approach:
                 content = content.replace(/<Image/g, '<img');
-                // Remove Next-specific props like priority, quality, etc if practical?
-                // For now, React will just warn about unknown props, it wont crash.
             }
 
-            // Remvoe Next.js Link
-            if (content.includes("from 'next/link'")) {
+            // ==== Remove Next.js Link ====
+            if (content.includes("from 'next/link'") || content.includes('from "next/link"')) {
                 content = content.replace(/import\s+Link\s+from\s+['"]next\/link['"];?\n?/g, '');
                 content = content.replace(/<Link/g, '<a');
                 content = content.replace(/<\/Link>/g, '</a>');
             }
 
-            // Fix missing framer-motion import
+            // ==== Fix missing framer-motion import for motion ====
             if (error.message.includes("'motion' without importing")) {
-                if (!content.includes("import { motion }")) {
-                    content = "import { motion } from 'framer-motion';\n" + content;
+                if (!content.includes("import { motion }") && !content.includes("import {motion}")) {
+                    // Add to existing framer-motion import or create new one
+                    if (content.includes("from 'framer-motion'")) {
+                        content = content.replace(
+                            /import\s*\{([^}]*)\}\s*from\s*['"]framer-motion['"]/,
+                            (match, imports) => `import { ${imports.trim()}, motion } from 'framer-motion'`
+                        );
+                    } else {
+                        content = "import { motion } from 'framer-motion';\n" + content;
+                    }
                 }
             }
+
+            // ==== Fix missing AnimatePresence import ====
+            if (error.message.includes("'AnimatePresence' without importing")) {
+                if (!content.includes("AnimatePresence")) {
+                    if (content.includes("from 'framer-motion'")) {
+                        content = content.replace(
+                            /import\s*\{([^}]*)\}\s*from\s*['"]framer-motion['"]/,
+                            (match, imports) => `import { ${imports.trim()}, AnimatePresence } from 'framer-motion'`
+                        );
+                    } else {
+                        content = "import { AnimatePresence } from 'framer-motion';\n" + content;
+                    }
+                }
+            }
+
+            // ==== Fix missing React hooks imports ====
+            if (error.message.includes("React hooks") && error.message.includes("without importing")) {
+                const reactHooks = ['useState', 'useEffect', 'useRef', 'useMemo', 'useCallback', 'useContext', 'useReducer', 'useLayoutEffect'];
+                const usedHooks = reactHooks.filter(hook =>
+                    new RegExp(`\\b${hook}\\b`).test(content)
+                );
+                if (usedHooks.length > 0) {
+                    // Check if there's already a React import to extend
+                    if (content.includes("from 'react'") || content.includes('from "react"')) {
+                        // Extend existing import
+                        content = content.replace(
+                            /import\s*\{([^}]*)\}\s*from\s*['"]react['"]/,
+                            (match, imports) => {
+                                const existingImports = imports.split(',').map((i: string) => i.trim()).filter(Boolean);
+                                const newImports = [...new Set([...existingImports, ...usedHooks])];
+                                return `import { ${newImports.join(', ')} } from 'react'`;
+                            }
+                        );
+                    } else {
+                        // Add new import
+                        content = `import { ${usedHooks.join(', ')} } from 'react';\n` + content;
+                    }
+                }
+            }
+
+            // ==== Fix missing Lucide icons imports ====
+            if (error.message.includes("Lucide icons") && error.message.includes("without importing")) {
+                const match = error.message.match(/\(([^)]+)\)/);
+                if (match) {
+                    const icons = match[1].split(',').map(s => s.trim());
+                    if (content.includes("from 'lucide-react'") || content.includes('from "lucide-react"')) {
+                        content = content.replace(
+                            /import\s*\{([^}]*)\}\s*from\s*['"]lucide-react['"]/,
+                            (match, imports) => {
+                                const existingImports = imports.split(',').map((i: string) => i.trim()).filter(Boolean);
+                                const newImports = [...new Set([...existingImports, ...icons])];
+                                return `import { ${newImports.join(', ')} } from 'lucide-react'`;
+                            }
+                        );
+                    } else {
+                        content = `import { ${icons.join(', ')} } from 'lucide-react';\n` + content;
+                    }
+                }
+            }
+
+            // ==== Fix malformed destructuring ====
+            if (error.message.includes("Malformed destructuring")) {
+                // Convert "const { x } from 'module'" to "import { x } from 'module'"
+                content = content.replace(
+                    /const\s*(\{[^}]+\})\s+from\s+(['"][^'"]+['"])/g,
+                    'import $1 from $2'
+                );
+            }
         }
+
+        // ==== Always clean up 'use client' directive ====
+        content = content.replace(/['"]use client['"];?\s*\n?/g, '');
 
         return { path: file.path, content };
     });
 }
+
 
 function validateAndFix(code: string, filePath: string): string {
     let fixed = code;
