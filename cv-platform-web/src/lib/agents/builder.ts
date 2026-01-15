@@ -616,6 +616,55 @@ export function detectErrors(files: GeneratedFile[]): ValidationError[] {
         }
     }
 
+    // ==== CSS-specific validation ====
+    for (const file of files) {
+        if (!file.path.endsWith('.css')) continue;
+
+        // Check for broken CSS variable names with spaces (--color - background instead of --color-background)
+        const brokenCssVarPattern = /--[\w]+ - [\w]+/g;
+        const brokenVars = file.content.match(brokenCssVarPattern) || [];
+        if (brokenVars.length > 0) {
+            errors.push({
+                file: file.path,
+                message: `CSS syntax error: Variable names have spaces (${brokenVars.slice(0, 3).join(', ')}...). Remove spaces around hyphens.`,
+                fixable: true,
+            });
+        }
+
+        // Check for broken CSS property names with spaces (background - color instead of background-color)
+        const brokenPropertyPattern = /[\w]+ - [\w]+\s*:/g;
+        const brokenProps = file.content.match(brokenPropertyPattern) || [];
+        if (brokenProps.length > 0) {
+            errors.push({
+                file: file.path,
+                message: `CSS syntax error: Property names have spaces (${brokenProps.slice(0, 3).join(', ')}...). Remove spaces around hyphens.`,
+                fixable: true,
+            });
+        }
+
+        // Check for broken pseudo-elements with spaces (:: -webkit - scrollbar instead of ::-webkit-scrollbar)
+        const brokenPseudoPattern = /:: ?-[\w]+ ?- ?[\w]+/g;
+        const brokenPseudos = file.content.match(brokenPseudoPattern) || [];
+        if (brokenPseudos.length > 0) {
+            errors.push({
+                file: file.path,
+                message: `CSS syntax error: Pseudo-elements have spaces (${brokenPseudos.slice(0, 2).join(', ')}...). Remove spaces.`,
+                fixable: true,
+            });
+        }
+    }
+
+    // ==== Check for missing profile image (if About component exists but no image) ====
+    const aboutFile = files.find(f => f.path.includes('About'));
+    if (aboutFile && !aboutFile.content.includes('<img') && !aboutFile.content.includes('profileImage')) {
+        // Informational - profile image might be intentionally omitted based on style
+        errors.push({
+            file: aboutFile.path,
+            message: "About component has no profile image - consider adding one for personalization",
+            fixable: false,
+        });
+    }
+
     return errors;
 }
 
@@ -720,6 +769,18 @@ export function autoFixErrors(files: GeneratedFile[], errors: ValidationError[])
                     /const\s*(\{[^}]+\})\s+from\s+(['"][^'"]+['"])/g,
                     'import $1 from $2'
                 );
+            }
+
+            // ==== Fix CSS syntax errors (spaces around hyphens) ====
+            if (error.message.includes("CSS syntax error")) {
+                // Fix variable names: --color - background → --color-background
+                content = content.replace(/--(\w+) - (\w+)/g, '--$1-$2');
+                // Fix property names: background - color: → background-color:
+                content = content.replace(/(\w+) - (\w+)\s*:/g, '$1-$2:');
+                // Fix pseudo-elements: :: -webkit - scrollbar → ::-webkit-scrollbar
+                content = content.replace(/:: ?-(\w+) ?- ?(\w+)/g, '::-$1-$2');
+                // Fix font values: sans - serif → sans-serif
+                content = content.replace(/sans - serif/g, 'sans-serif');
             }
         }
 

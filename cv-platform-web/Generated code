@@ -1,0 +1,688 @@
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App'
+import './index.css'
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+        <App />
+    </React.StrictMode>,
+)
+    / src / App.tsx
+import Hero from './components/Hero'
+import About from './components/About'
+import Projects from './components/Projects'
+import Skills from './components/Skills'
+import Contact from './components/Contact'
+
+import { useVisualEditing } from './hooks/use-visual-editing';
+function App() {
+    useVisualEditing();
+    return (
+        <main className="bg-background text-text min-h-screen selection:bg-black selection:text-white overflow-x-hidden">
+            <Hero />
+            <About />
+            <Skills />
+            <Projects />
+            <Contact />
+        </main>
+    )
+}
+
+export default App
+    / src / index.css
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    /* Swiss-Minimalist Palette */
+    --color - background: #F5F5F5;
+    --color - surface: #E5E5E5;
+    --color - text: #111827;
+    --color - primary: #000000;
+    --color - secondary: #4B5563;
+    --color - accent: #000000;
+
+    /* Typography */
+    --font - heading: 'Inter', sans - serif; /* Graphik alternative */
+    --font - body: 'Inter', sans - serif;
+    --font - mono: 'JetBrains Mono', monospace;
+}
+
+body {
+    background - color: var(--color - background);
+    color: var(--color - text);
+    font - family: var(--font - body);
+    -webkit - font - smoothing: antialiased;
+    -moz - osx - font - smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font - family: var(--font - heading);
+    letter - spacing: -0.02em;
+}
+
+/* Custom Scrollbar */
+:: -webkit - scrollbar {
+    width: 8px;
+}
+:: -webkit - scrollbar - track {
+    background: var(--color - background);
+}
+:: -webkit - scrollbar - thumb {
+    background: #ccc;
+    border - radius: 4px;
+}
+:: -webkit - scrollbar - thumb:hover {
+    background: #999;
+}
+
+/* Utility for "The Void" spacing */
+.section - gap {
+    margin - bottom: 8rem;
+}
+/src/tailwind.config.ts
+/** @type {import('tailwindcss').Config} */
+export default {
+    content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+    theme: {
+        extend: {
+            colors: {
+                background: "var(--color-background)",
+                surface: "var(--color-surface)",
+                primary: "var(--color-primary)",
+                secondary: "var(--color-secondary)",
+                accent: "var(--color-accent)",
+                text: "var(--color-text)",
+            },
+            fontFamily: {
+                heading: "var(--font-heading)",
+                body: "var(--font-body)",
+                mono: "var(--font-mono)",
+            },
+            fontSize: {
+                'display': ['12vw', { lineHeight: '0.9', letterSpacing: '-0.04em' }],
+            }
+        }
+    },
+    plugins: [],
+}
+    / src / components / Hero.tsx
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { useEffect, useState } from 'react';
+
+const studioTransition = {
+    type: "spring",
+    stiffness: 70,
+    damping: 20,
+    mass: 1
+};
+
+const container = {
+    initial: { opacity: 0 },
+    animate: {
+        opacity: 1,
+        transition: { staggerChildren: 0.15 }
+    }
+};
+
+const item = {
+    initial: { y: "100%" },
+    animate: {
+        y: "0%",
+        transition: studioTransition
+    }
+};
+
+export default function Hero() {
+    const [time, setTime] = useState(new Date());
+    const { scrollY } = useScroll();
+    const y = useTransform(scrollY, [0, 500], [0, 150]);
+
+    useEffect(() => {
+        const timer = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const formatTime = (date: Date) => {
+        return date.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZoneName: 'short'
+        });
+    };
+
+    return (
+        <motion.section
+            className="relative min-h-screen flex flex-col justify-between px-4 py-6 md:p-8 overflow-hidden"
+            initial="initial"
+            animate="animate"
+            variants={container}
+        >
+            {/* Top Metadata Bar */}
+            <div className="flex justify-between items-start w-full font-mono text-xs md:text-sm tracking-tight text-secondary uppercase">
+                <div className="flex flex-col gap-1">
+                    <motion.span variants={item} className="block overflow-hidden">
+                        [ {formatTime(time)} ]
+                    </motion.span>
+                    <motion.span variants={item} className="block overflow-hidden">
+                        [ LOC: REMOTE ]
+                    </motion.span>
+                </div>
+                <div className="text-right">
+                    <motion.span variants={item} className="block overflow-hidden">
+                        [ STATUS: ONLINE ]
+                    </motion.span>
+                    <motion.span variants={item} className="block overflow-hidden text-green-600">
+                        ● AVAILABLE FOR NEW PARTNERSHIPS
+                    </motion.span>
+                </div>
+            </div>
+
+            {/* Main Content */}
+            <div className="flex-1 flex flex-col justify-center relative z-10">
+                <motion.div style={{ y }} className="w-full">
+                    {/* Asymmetric Layout */}
+                    <div className="grid grid-cols-12 gap-4 mb-8">
+                        <div className="col-span-12 md:col-span-8 md:col-start-5">
+                            <div className="overflow-hidden">
+                                <motion.p
+                                    variants={item}
+                                    className="font-mono text-sm md:text-base mb-2 text-secondary"
+                                >
+                  // OUTREACH SPECIALIST
+                                </motion.p>
+                            </div>
+                            <div className="overflow-hidden">
+                                <motion.h2
+                                    variants={item}
+                                    className="text-xl md:text-3xl font-heading leading-tight max-w-2xl"
+                                >
+                                    I connect brands and projects together leading to sustainable partnerships.
+                                </motion.h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Massive Display Text */}
+                    <div className="overflow-hidden border-t border-black/10 pt-4">
+                        <motion.h1
+                            variants={item}
+                            className="font-heading font-bold text-display text-primary uppercase leading-none tracking-tighter"
+                        >
+                            Fortune
+                        </motion.h1>
+                    </div>
+                </motion.div>
+            </div>
+
+            {/* Bottom Anchor */}
+            <div className="w-full flex justify-between items-end font-mono text-xs md:text-sm text-secondary border-t border-black/10 pt-4">
+                <motion.span variants={item}>[ SCROLL TO EXPLORE ]</motion.span>
+                <motion.span variants={item}>[ V1.0.4 ]</motion.span>
+            </div>
+        </motion.section>
+    );
+}
+/src/components / About.tsx
+import { motion } from 'framer-motion';
+
+const studioTransition = {
+    type: "spring",
+    stiffness: 70,
+    damping: 20
+};
+
+export default function About() {
+    return (
+        <motion.section
+            className="py-32 px-4 md:px-8 border-b border-black/10"
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={{
+                initial: { opacity: 0 },
+                animate: { opacity: 1, transition: { staggerChildren: 0.15 } }
+            }}
+        >
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-4">
+                {/* Sticky Label */}
+                <div className="md:col-span-3 md:h-full">
+                    <motion.div
+                        className="md:sticky md:top-32 font-mono text-sm uppercase tracking-wide text-secondary"
+                        variants={{
+                            initial: { x: -20, opacity: 0 },
+                            animate: { x: 0, opacity: 1, transition: studioTransition }
+                        }}
+                    >
+                        [ 01 — BIO ]
+                    </motion.div>
+                </div>
+
+                {/* Editorial Text */}
+                <div className="md:col-span-8 md:col-start-5">
+                    <motion.div
+                        className="space-y-8"
+                        variants={{
+                            initial: { y: 20, opacity: 0 },
+                            animate: { y: 0, opacity: 1, transition: studioTransition }
+                        }}
+                    >
+                        <h3 className="text-2xl md:text-4xl font-heading leading-tight font-light">
+                            I am an Outreach Specialist who builds strategic partnerships for founders and creators by combining a background in <span className="font-medium border-b border-black">ghostwriting</span> with digital brand development.
+                        </h3>
+
+                        <p className="text-lg md:text-xl text-secondary leading-relaxed max-w-2xl">
+                            Over three years, I have developed a repeatable, measured approach to outreach that navigates niche communities and converts relationships into long-term, revenue-driving collaborations.
+                        </p>
+
+                        <p className="text-lg md:text-xl text-secondary leading-relaxed max-w-2xl">
+                            I leverage <span className="font-mono text-sm bg-black text-white px-2 py-1 mx-1 rounded-sm">[ AI-DRIVEN_WORKFLOWS ]</span> to scale highly personalized communication while maintaining a human-first cadence that resonates with decision-makers.
+                        </p>
+                    </motion.div>
+                </div>
+            </div>
+        </motion.section>
+    );
+}
+/src/components / Skills.tsx
+import { motion } from 'framer-motion';
+
+const skills = [
+    "Strategic Partnerships",
+    "Cold Outreach",
+    "Lead Generation",
+    "Ghostwriting",
+    "Brand Development",
+    "AI Workflows",
+    "Community Growth",
+    "Deal Closing"
+];
+
+const studioTransition = {
+    type: "spring",
+    stiffness: 70,
+    damping: 20
+};
+
+export default function Skills() {
+    return (
+        <motion.section
+            className="py-24 px-4 md:px-8 border-b border-black/10 bg-surface/30"
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={{
+                initial: { opacity: 0 },
+                animate: { opacity: 1, transition: { staggerChildren: 0.1 } }
+            }}
+        >
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-4">
+                <div className="md:col-span-3">
+                    <motion.div
+                        className="font-mono text-sm uppercase tracking-wide text-secondary"
+                        variants={{
+                            initial: { x: -20, opacity: 0 },
+                            animate: { x: 0, opacity: 1, transition: studioTransition }
+                        }}
+                    >
+                        [ CAPABILITIES ]
+                    </motion.div>
+                </div>
+
+                <div className="md:col-span-9">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {skills.map((skill, index) => (
+                            <motion.div
+                                key={index}
+                                className="border border-black/10 p-4 hover:bg-white transition-colors duration-300 group cursor-default"
+                                variants={{
+                                    initial: { y: 20, opacity: 0 },
+                                    animate: { y: 0, opacity: 1, transition: studioTransition }
+                                }}
+                                whileHover={{ scale: 1.02 }}
+                            >
+                                <span className="font-mono text-xs text-secondary mb-2 block group-hover:text-primary">
+                                    {`0${index + 1}`}
+                                </span>
+                                <span className="font-heading text-lg font-medium">
+                                    {skill}
+                                </span>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </motion.section>
+    );
+}
+/src/components / Projects.tsx
+import { motion } from 'framer-motion';
+import { ArrowUpRight } from '@phosphor-icons/react';
+
+const projects = [
+    {
+        name: "Persona",
+        role: "Outreach & Lead Gen",
+        impact: "Closed over 5,000 new partnerships in the first year.",
+        metrics: "5,000+ PARTNERSHIPS",
+        link: "https://twitter.com/persona_journey"
+    },
+    {
+        name: "Pukecast",
+        role: "Outreach & Research",
+        impact: "Generated over 10,000 qualified leads and 10x increase in sales.",
+        metrics: "10,000+ QUALIFIED LEADS",
+        link: "https://twitter.com/pukecast"
+    },
+    {
+        name: "Hub.xyz",
+        role: "Lead Generation",
+        impact: "Closed deals with major AI brands including OpenAI & Google.",
+        metrics: "MAJOR AI BRANDS CLOSED",
+        link: "https://twitter.com/hubxyz"
+    }
+];
+
+const studioTransition = {
+    type: "spring",
+    stiffness: 70,
+    damping: 20
+};
+
+export default function Projects() {
+    return (
+        <motion.section
+            className="py-32 px-4 md:px-8"
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, amount: 0.1 }}
+            variants={{
+                initial: { opacity: 0 },
+                animate: { opacity: 1, transition: { staggerChildren: 0.15 } }
+            }}
+        >
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-16">
+                <div className="md:col-span-3">
+                    <motion.div
+                        className="font-mono text-sm uppercase tracking-wide text-secondary"
+                        variants={{
+                            initial: { x: -20, opacity: 0 },
+                            animate: { x: 0, opacity: 1, transition: studioTransition }
+                        }}
+                    >
+                        [ 02 — TRACK RECORD ]
+                    </motion.div>
+                </div>
+            </div>
+
+            <div className="flex flex-col">
+                {projects.map((project, index) => (
+                    <motion.a
+                        key={index}
+                        href={project.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group relative border-t border-black/10 py-12 md:py-16 hover:bg-surface/50 transition-colors duration-500"
+                        variants={{
+                            initial: { y: 40, opacity: 0 },
+                            animate: { y: 0, opacity: 1, transition: studioTransition }
+                        }}
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-baseline">
+                            {/* Project Name */}
+                            <div className="md:col-span-4 pl-2">
+                                <h3 className="text-4xl md:text-6xl font-heading font-bold tracking-tight group-hover:translate-x-2 transition-transform duration-500">
+                                    {project.name}
+                                </h3>
+                                <span className="font-mono text-xs md:text-sm text-secondary mt-2 block group-hover:translate-x-2 transition-transform duration-500 delay-75">
+                                    [ {project.role} ]
+                                </span>
+                            </div>
+
+                            {/* Metrics (Hero) */}
+                            <div className="md:col-span-5">
+                                <p className="text-xl md:text-2xl font-medium font-heading">
+                                    {project.metrics}
+                                </p>
+                                <p className="text-secondary mt-2 max-w-md">
+                                    {project.impact}
+                                </p>
+                            </div>
+
+                            {/* Action */}
+                            <div className="md:col-span-3 flex justify-end pr-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <div className="bg-black text-white p-3 rounded-full transform group-hover:scale-110 transition-transform duration-300">
+                                    <ArrowUpRight size={24} weight="bold" />
+                                </div>
+                            </div>
+                        </div>
+                    </motion.a>
+                ))}
+                <div className="border-t border-black/10" />
+            </div>
+        </motion.section>
+    );
+}
+/src/components / Contact.tsx
+import { motion } from 'framer-motion';
+import { Envelope, TwitterLogo, LinkedinLogo } from '@phosphor-icons/react';
+
+const studioTransition = {
+    type: "spring",
+    stiffness: 70,
+    damping: 20
+};
+
+export default function Contact() {
+    return (
+        <motion.section
+            className="py-32 px-4 md:px-8 bg-surface/30 min-h-[60vh] flex flex-col justify-between"
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={{
+                initial: { opacity: 0 },
+                animate: { opacity: 1, transition: { staggerChildren: 0.15 } }
+            }}
+        >
+            <div>
+                <motion.div
+                    className="font-mono text-sm uppercase tracking-wide text-secondary mb-8"
+                    variants={{
+                        initial: { x: -20, opacity: 0 },
+                        animate: { x: 0, opacity: 1, transition: studioTransition }
+                    }}
+                >
+                    [ 03 — CONTACT ]
+                </motion.div>
+
+                <motion.h2
+                    className="text-5xl md:text-7xl font-heading font-bold tracking-tight max-w-4xl leading-none mb-12"
+                    variants={{
+                        initial: { y: 40, opacity: 0 },
+                        animate: { y: 0, opacity: 1, transition: studioTransition }
+                    }}
+                >
+                    Let's scale your reach.
+                </motion.h2>
+
+                <motion.div
+                    className="flex flex-wrap gap-4 md:gap-8"
+                    variants={{
+                        initial: { opacity: 0 },
+                        animate: { opacity: 1, transition: studioTransition }
+                    }}
+                >
+                    <a
+                        href="mailto:dreycole53@gmail.com"
+                        className="group flex items-center gap-3 bg-primary text-white px-6 py-4 rounded-md font-mono text-sm hover:bg-black/80 transition-all"
+                    >
+                        <Envelope size={20} />
+                        <span>[ EMAIL_ME ]</span>
+                    </a>
+
+                    <a
+                        href="https://x.com/dreyshq"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group flex items-center gap-3 border border-black/10 bg-white px-6 py-4 rounded-md font-mono text-sm hover:border-black transition-all"
+                    >
+                        <TwitterLogo size={20} />
+                        <span>[ TWITTER ]</span>
+                    </a>
+
+                    <a
+                        href="https://www.linkedin.com/in/fortuneosasere/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group flex items-center gap-3 border border-black/10 bg-white px-6 py-4 rounded-md font-mono text-sm hover:border-black transition-all"
+                    >
+                        <LinkedinLogo size={20} />
+                        <span>[ LINKEDIN ]</span>
+                    </a>
+                </motion.div>
+            </div>
+
+            <motion.div
+                className="flex flex-col md:flex-row justify-between items-end border-t border-black/10 pt-8 mt-24 font-mono text-xs md:text-sm text-secondary"
+                variants={{
+                    initial: { opacity: 0 },
+                    animate: { opacity: 1, transition: studioTransition }
+                }}
+            >
+                <div className="mb-4 md:mb-0">
+                    <p>© 2024 FORTUNE</p>
+                    <p>BUILT WITH REACT + FRAMER MOTION</p>
+                </div>
+                <div className="text-right">
+                    <p>[ SYSTEM_STATUS: IDLE ]</p>
+                    <p>ALL RIGHTS RESERVED</p>
+                </div>
+            </motion.div>
+        </motion.section>
+    );
+}
+/vite.config.ts
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+    plugins: [react()],
+})
+    / src / hooks / use - visual - editing.ts
+
+import { useEffect, useState } from 'react';
+
+export function useVisualEditing() {
+    const [enabled, setEnabled] = useState(false);
+    const [hoveredElement, setHoveredElement] = useState(null);
+
+    useEffect(() => {
+        // Listen for enable/disable messages from parent editor
+        const handleMessage = (event) => {
+            if (event.data?.type === 'VISUAL_EDITING_TOGGLE') {
+                setEnabled(event.data.enabled);
+            }
+        };
+        window.addEventListener('message', handleMessage);
+
+        // Notify parent that we're ready
+        window.parent.postMessage({ type: 'VISUAL_EDITING_READY' }, '*');
+
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
+
+    useEffect(() => {
+        if (!enabled) {
+            // Cleanup any lingering styles
+            document.querySelectorAll('[data-ve-highlight]').forEach(el => {
+                el.removeAttribute('data-ve-highlight');
+                el.style.outline = '';
+                el.style.cursor = '';
+            });
+            return;
+        }
+
+        const handleMouseOver = (e) => {
+            e.stopPropagation();
+            const target = e.target;
+            if (target === document.body || target === document.documentElement) return;
+
+            // Clear previous highlight
+            document.querySelectorAll('[data-ve-highlight]').forEach(el => {
+                if (el !== target) {
+                    el.removeAttribute('data-ve-highlight');
+                    el.style.outline = '';
+                    el.style.cursor = '';
+                }
+            });
+
+            // Highlight current
+            target.setAttribute('data-ve-highlight', 'true');
+            target.style.outline = '2px solid #3b82f6';
+            target.style.outlineOffset = '2px';
+            target.style.cursor = 'crosshair';
+
+            setHoveredElement(target);
+        };
+
+        const handleMouseOut = (e) => {
+            const target = e.target;
+            target.removeAttribute('data-ve-highlight');
+            target.style.outline = '';
+            target.style.cursor = '';
+        };
+
+        const handleClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const target = e.target;
+            const tag = target.tagName.toLowerCase();
+            const id = target.id || null;
+            const className = target.className || null;
+            const textContent = target.innerText?.substring(0, 50) || '';
+
+            // Try to build a selector path
+            let selectorPath = tag;
+            if (id) selectorPath = '#' + id;
+            else if (className && typeof className === 'string') {
+                const firstClass = className.split(' ')[0];
+                if (firstClass) selectorPath = tag + '.' + firstClass;
+            }
+
+            window.parent.postMessage({
+                type: 'ELEMENT_SELECTED',
+                payload: {
+                    tag,
+                    id,
+                    className,
+                    textContent,
+                    selectorPath,
+                }
+            }, '*');
+        };
+
+        document.addEventListener('mouseover', handleMouseOver, true);
+        document.addEventListener('mouseout', handleMouseOut, true);
+        document.addEventListener('click', handleClick, true);
+
+        return () => {
+            document.removeEventListener('mouseover', handleMouseOver, true);
+            document.removeEventListener('mouseout', handleMouseOut, true);
+            document.removeEventListener('click', handleClick, true);
+            // Final cleanup
+            document.querySelectorAll('[data-ve-highlight]').forEach(el => {
+                el.removeAttribute('data-ve-highlight');
+                el.style.outline = '';
+                el.style.cursor = '';
+            });
+        };
+    }, [enabled]);
+
+    return { enabled };
+}
