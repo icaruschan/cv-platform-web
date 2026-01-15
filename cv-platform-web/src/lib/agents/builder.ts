@@ -315,7 +315,17 @@ ${MOTION_SYSTEM_PROMPT}
    - If it starts with '@', convert to Twitter URL: 'https://x.com/[handle without @]'
    - If it's a full URL (starts with 'http'), use it directly
    - Make the ENTIRE project card clickable using <a> with target="_blank"
-3. **Social Links**: Render icon buttons only if the URL is not 'Not provided'. Hide missing ones.
+3. **Social Links**: Render icon buttons only if the URL is not 'Not provided'. MUST use Phosphor Icons:
+   \`\`\`tsx
+   // REQUIRED: Import at top of Contact component
+   import { Envelope, TwitterLogo, LinkedinLogo, GithubLogo } from '@phosphor-icons/react';
+   
+   // REQUIRED: Render with visible icons
+   {socialLinks.email && <a href={\`mailto:\${socialLinks.email}\`}><Envelope size={24} /></a>}
+   {socialLinks.twitter && <a href={socialLinks.twitter} target="_blank"><TwitterLogo size={24} /></a>}
+   {socialLinks.linkedin && <a href={socialLinks.linkedin} target="_blank"><LinkedinLogo size={24} /></a>}
+   \`\`\`
+   ⚠️ CRITICAL: Never render empty <a> tags without icon components inside!
 
 ---
 
@@ -712,6 +722,30 @@ export function detectErrors(files: GeneratedFile[]): ValidationError[] {
             errors.push({
                 file: contactFile.path,
                 message: "⚠️ REQUIREMENT: Contact section missing CTA button",
+                fixable: false,
+            });
+        }
+
+        // Check for empty anchor tags (missing icons inside)
+        const emptyAnchorPattern = /<a[^>]*>\s*<\/a>/g;
+        const emptyAnchors = contactFile.content.match(emptyAnchorPattern) || [];
+        if (emptyAnchors.length > 0) {
+            errors.push({
+                file: contactFile.path,
+                message: `⚠️ REQUIREMENT: Contact has ${emptyAnchors.length} empty link(s) - missing icon components inside <a> tags`,
+                fixable: false,
+            });
+        }
+
+        // Check for social icons presence
+        const hasSocialIcons = contactFile.content.includes('TwitterLogo') ||
+            contactFile.content.includes('LinkedinLogo') ||
+            contactFile.content.includes('GithubLogo') ||
+            contactFile.content.includes('Envelope');
+        if (!hasSocialIcons) {
+            errors.push({
+                file: contactFile.path,
+                message: "⚠️ REQUIREMENT: Contact section missing social icons (TwitterLogo, LinkedinLogo, etc.)",
                 fixable: false,
             });
         }
