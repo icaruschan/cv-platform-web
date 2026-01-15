@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import SimplePreview from './SimplePreview';
+import SandpackPreview from './SandpackPreview';
 import CodeView from './CodeView';
 import CanvasArea from './CanvasArea';
 import EditorLayout from './EditorLayout';
@@ -379,7 +380,12 @@ body {
         <WaitingRoom status="building" message="No files yet. Start a conversation!" />
     ) : (
         <div className="h-full w-full">
-            <SimplePreview files={sandpackFiles} />
+            {/* Feature flag: Set to false to revert to SimplePreview */}
+            {process.env.NEXT_PUBLIC_USE_SANDPACK === 'true' ? (
+                <SandpackPreview files={sandpackFiles} />
+            ) : (
+                <SimplePreview files={sandpackFiles} />
+            )}
         </div>
     );
 
