@@ -41,7 +41,7 @@ https://www.framer.com/marketplace/templates/category/portfolio/
 
 ### Available Styles
 ```
-3d, animated, black-white, colorful, dark, gradient, grid, 
+3d, animated, black-and-white, colorful, dark, gradient, grid, 
 illustrative, large-type, light, minimal, modern, monochromatic, 
 pastel, professional, retro, typographic
 ```

@@ -260,12 +260,12 @@ export const VIBE_MAPPINGS: Record<string, {
         godly: ['monochromatic'],
     },
     blackwhite: {
-        framer: ['black-white'],
+        framer: ['black-and-white'],
         awwwards: [AWWWARDS_COLORS.darkGray, AWWWARDS_COLORS.white],
         godly: ['black-white'],
     },
     'black-white': {
-        framer: ['black-white'],
+        framer: ['black-and-white'],
         awwwards: [AWWWARDS_COLORS.darkGray, AWWWARDS_COLORS.white],
         godly: ['black-white'],
     },

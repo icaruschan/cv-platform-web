@@ -165,11 +165,18 @@ ${userPrompt}
             duration: totalDuration,
         });
 
+        // Convert files array to object format (frontend expects { path: content })
+        const filesObject: Record<string, string> = {};
+        for (const file of finalFiles) {
+            filesObject[file.path] = file.content;
+        }
+
         return NextResponse.json({
-            message: naturalMessage,
-            files: finalFiles,
+            response: naturalMessage,  // Frontend expects 'response', not 'message'
+            files: filesObject,        // Object format, not array
             thoughtSteps,
             validationErrors: errors,
+            filesChanged: finalFiles.length,
             fixAttempts
         });
 
