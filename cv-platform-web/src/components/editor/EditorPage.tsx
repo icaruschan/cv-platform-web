@@ -321,10 +321,14 @@ body {
             setMessages(prev => [...prev, ...newFeedItems]);
 
             if (data.files && Object.keys(data.files).length > 0) {
+                console.log('📝 Updating sandpack files:', Object.keys(data.files));
                 setSandpackFiles(prev => {
                     const updated = { ...prev };
                     for (const [path, content] of Object.entries(data.files)) {
-                        updated[path] = content as string;
+                        // Normalize path to have leading slash (Sandpack format)
+                        const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+                        updated[normalizedPath] = content as string;
+                        console.log(`  Updated: ${normalizedPath}`);
                     }
 
                     return injectVisualEditing(updated) as Record<string, string>;
