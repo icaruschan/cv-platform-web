@@ -103,27 +103,42 @@ ${userPrompt}
         let currentFile: string | null = null;
         let currentContent: string[] = [];
         const naturalMessageLines: string[] = [];
+        let inCodeBlock = false;
 
         for (const line of lines) {
             if (line.trim().startsWith('### FILE:')) {
                 if (currentFile) {
-                    updates.push({ path: currentFile, content: currentContent.join('\n').trim() });
+                    // Clean the content before saving
+                    let content = currentContent.join('\n').trim();
+                    // Remove markdown code block fences if present
+                    content = content.replace(/^```\w*\n?/gm, '').replace(/\n?```$/gm, '').trim();
+                    updates.push({ path: currentFile, content });
                 }
                 currentFile = line.replace('### FILE:', '').trim();
                 currentContent = [];
-            } else {
-                if (currentFile) {
-                    currentContent.push(line);
-                } else {
-                    naturalMessageLines.push(line);
+                inCodeBlock = false;
+            } else if (currentFile) {
+                // Skip markdown code fences inside file content
+                if (line.trim().startsWith('```')) {
+                    inCodeBlock = !inCodeBlock;
+                    // Don't add the fence line to content
+                    continue;
                 }
+                currentContent.push(line);
+            } else {
+                naturalMessageLines.push(line);
             }
         }
         if (currentFile) {
-            updates.push({ path: currentFile, content: currentContent.join('\n').trim() });
+            let content = currentContent.join('\n').trim();
+            // Remove any remaining markdown code fences
+            content = content.replace(/^```\w*\n?/gm, '').replace(/\n?```$/gm, '').trim();
+            updates.push({ path: currentFile, content });
         }
 
         const naturalMessage = naturalMessageLines.join('\n').trim();
+
+        console.log(`📝 Parsed ${updates.length} files from LLM response:`, updates.map(u => u.path));
 
         // Step 3: Validating
         const valStart = Date.now();
