@@ -157,8 +157,34 @@ ${userPrompt}
             errors = detectErrors(finalFiles);
         }
 
+        // Check for critical (non-fixable) errors
+        const criticalErrors = errors.filter(e => !e.fixable);
+        const hasCriticalErrors = criticalErrors.length > 0;
+
         // Step 5: Complete
         const totalDuration = Math.round((Date.now() - startTime) / 1000);
+
+        if (hasCriticalErrors) {
+            // Warn about broken code - don't apply changes
+            thoughtSteps.push({
+                id: `chat-warning-${Date.now()}`,
+                type: 'error',
+                message: `⚠️ Found ${criticalErrors.length} critical error(s) - changes NOT applied`,
+                details: criticalErrors.map(e => e.message),
+            });
+
+            // Return without applying changes
+            return NextResponse.json({
+                response: `${naturalMessage}\n\n⚠️ **Warning:** I generated code with errors that I couldn't fix:\n${criticalErrors.map(e => `- ${e.message}`).join('\n')}\n\nPlease try rephrasing your request or being more specific.`,
+                files: {},  // Empty - don't apply broken code
+                thoughtSteps,
+                validationErrors: errors,
+                filesChanged: 0,
+                fixAttempts,
+                hasErrors: true
+            });
+        }
+
         thoughtSteps.push({
             id: `chat-complete-${Date.now()}`,
             type: 'complete',

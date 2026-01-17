@@ -627,6 +627,74 @@ export function detectErrors(files: GeneratedFile[]): ValidationError[] {
             }
         }
 
+        // ==== NEW: Detect empty function calls like ""() or ''() ====
+        const emptyFunctionCall = file.content.match(/["']\s*["']\s*\(/g);
+        if (emptyFunctionCall) {
+            errors.push({
+                file: file.path,
+                message: `Empty function call detected: "" is not a function. LLM may have generated broken code.`,
+                fixable: false,
+            });
+        }
+
+        // ==== NEW: Detect empty import statements ====
+        const emptyImport = file.content.match(/import\s+{\s*}\s+from/g);
+        if (emptyImport) {
+            errors.push({
+                file: file.path,
+                message: "Empty import statement: import {} from - nothing is being imported",
+                fixable: true,
+            });
+        }
+
+        // ==== NEW: Detect broken arrow functions ====
+        const brokenArrow = file.content.match(/=>\s*{?\s*}?;?\s*$/gm);
+        if (brokenArrow && brokenArrow.length > 0) {
+            // Check if it's actually empty (not just a multi-line function)
+            const emptyArrowPattern = /=>\s*{\s*}\s*$/gm;
+            const emptyArrows = file.content.match(emptyArrowPattern);
+            if (emptyArrows && emptyArrows.length > 2) {
+                errors.push({
+                    file: file.path,
+                    message: `Multiple empty arrow functions detected - may indicate incomplete code generation`,
+                    fixable: false,
+                });
+            }
+        }
+
+        // ==== NEW: Detect undefined/empty default exports ====
+        const emptyDefaultExport = file.content.match(/export\s+default\s+["']\s*["']/);
+        if (emptyDefaultExport) {
+            errors.push({
+                file: file.path,
+                message: `Empty default export: export default "" - LLM generated broken code`,
+                fixable: false,
+            });
+        }
+
+        // ==== NEW: Detect JSX with broken function calls ====
+        const brokenJsxFunction = file.content.match(/<\w+\s+\w+={["']["']\s*\(}/g);
+        if (brokenJsxFunction) {
+            errors.push({
+                file: file.path,
+                message: `Broken JSX handler: onClick={""()} or similar - empty function reference`,
+                fixable: false,
+            });
+        }
+
+        // ==== NEW: Detect truncated code (common LLM issue) ====
+        const lastLine = file.content.trim().split('\n').pop() || '';
+        if (lastLine.match(/^(const|let|var|function|import|export|if|for|while)\s*$/) ||
+            lastLine.match(/=>\s*$/) ||
+            lastLine.endsWith('= {') ||
+            lastLine.endsWith('= (')) {
+            errors.push({
+                file: file.path,
+                message: `Code appears truncated - file ends with incomplete statement: "${lastLine.slice(0, 50)}..."`,
+                fixable: false,
+            });
+        }
+
         // ==== Check for 'use client' directive (cleanup, not error) ====
         if (file.content.includes("'use client'") || file.content.includes('"use client"')) {
             // Not an error in Vite, but we can clean it up silently
