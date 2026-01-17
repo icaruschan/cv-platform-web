@@ -597,21 +597,25 @@ export function detectErrors(files: GeneratedFile[]): ValidationError[] {
         }
 
         // ==== Syntax validation using Function constructor ====
-        try {
-            // Strip imports/exports and try to parse
-            const strippedCode = file.content
-                .replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?/g, '')
-                .replace(/export\s+(default\s+)?/g, '')
-                .replace(/export\s*\{[^}]*\};?/g, '');
-            new Function(strippedCode);
-        } catch (e: any) {
-            // Only report syntax errors, not reference errors
-            if (e.message && !e.message.includes('is not defined')) {
-                errors.push({
-                    file: file.path,
-                    message: `Potential syntax error: ${e.message.split('\n')[0]}`,
-                    fixable: false,
-                });
+        // NOTE: We only do this for .ts files, NOT .tsx files
+        // because JSX syntax is not valid JavaScript and will always fail
+        if (file.path.endsWith('.ts') && !file.path.endsWith('.tsx')) {
+            try {
+                // Strip imports/exports and try to parse
+                const strippedCode = file.content
+                    .replace(/import\s+[\s\S]*?from\s+['"][^'"]+['"];?/g, '')
+                    .replace(/export\s+(default\s+)?/g, '')
+                    .replace(/export\s*\{[^}]*\};?/g, '');
+                new Function(strippedCode);
+            } catch (e: any) {
+                // Only report syntax errors, not reference errors
+                if (e.message && !e.message.includes('is not defined')) {
+                    errors.push({
+                        file: file.path,
+                        message: `Potential syntax error: ${e.message.split('\n')[0]}`,
+                        fixable: false,
+                    });
+                }
             }
         }
 
