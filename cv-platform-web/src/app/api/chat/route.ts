@@ -225,23 +225,35 @@ ${userPrompt}
             console.log(`💾 Saving ${finalFiles.length} files to project ${projectId}`);
 
             for (const file of finalFiles) {
+                // Normalize path: database stores without leading slash (e.g., 'src/components/Hero.tsx')
+                // but LLM outputs with leading slash (e.g., '/src/components/Hero.tsx')
+                const normalizedPath = file.path.startsWith('/') ? file.path.slice(1) : file.path;
+
+                console.log(`  Saving: ${normalizedPath} (original: ${file.path})`);
+
                 // Delete existing file first, then insert new version
-                await supabase
+                const { error: deleteError } = await supabase
                     .from('files')
                     .delete()
                     .eq('project_id', projectId)
-                    .eq('path', file.path);
+                    .eq('path', normalizedPath);
 
-                const { error } = await supabase
+                if (deleteError) {
+                    console.error(`  Delete error for ${normalizedPath}:`, deleteError);
+                }
+
+                const { error: insertError } = await supabase
                     .from('files')
                     .insert({
                         project_id: projectId,
-                        path: file.path,
+                        path: normalizedPath,
                         content: file.content
                     });
 
-                if (error) {
-                    console.error(`Failed to save ${file.path}:`, error);
+                if (insertError) {
+                    console.error(`  Insert error for ${normalizedPath}:`, insertError);
+                } else {
+                    console.log(`  ✅ Saved: ${normalizedPath}`);
                 }
             }
         }
