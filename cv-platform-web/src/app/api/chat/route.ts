@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { ChatRequest } from '../../../lib/types';
 import { MOTION_SYSTEM_PROMPT, TECHNICAL_CONSTRAINTS_PROMPT } from '../../../lib/agents/system-prompts';
 import { detectErrors, autoFixErrors, ThoughtStep } from '../../../lib/agents/builder';
+import { supabase } from '@/lib/supabase';
 
 export const maxDuration = 120; // 2 minutes
 export const dynamic = 'force-dynamic';
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
     });
 
     try {
-        const { messages, currentFiles } = await request.json() as ChatRequest;
+        const { messages, currentFiles, projectId } = await request.json() as ChatRequest & { projectId?: string };
         const userPrompt = messages[messages.length - 1].content;
 
         const systemPrompt = `You are the AI Editor for a Portfolio Builder.
@@ -169,6 +170,32 @@ ${userPrompt}
         const filesObject: Record<string, string> = {};
         for (const file of finalFiles) {
             filesObject[file.path] = file.content;
+        }
+
+        // Persist files to Supabase if projectId is provided
+        if (projectId && finalFiles.length > 0) {
+            console.log(`💾 Saving ${finalFiles.length} files to project ${projectId}`);
+
+            for (const file of finalFiles) {
+                // Delete existing file first, then insert new version
+                await supabase
+                    .from('files')
+                    .delete()
+                    .eq('project_id', projectId)
+                    .eq('path', file.path);
+
+                const { error } = await supabase
+                    .from('files')
+                    .insert({
+                        project_id: projectId,
+                        path: file.path,
+                        content: file.content
+                    });
+
+                if (error) {
+                    console.error(`Failed to save ${file.path}:`, error);
+                }
+            }
         }
 
         return NextResponse.json({
