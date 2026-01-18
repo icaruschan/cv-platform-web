@@ -231,27 +231,24 @@ ${userPrompt}
 
                 console.log(`  Saving: ${normalizedPath} (original: ${file.path})`);
 
-                // Delete existing file first, then insert new version
-                const { error: deleteError } = await supabase
+                // Upsert: insert or update if exists (uses unique constraint on project_id + path)
+                const { error: upsertError } = await supabase
                     .from('files')
-                    .delete()
-                    .eq('project_id', projectId)
-                    .eq('path', normalizedPath);
+                    .upsert(
+                        {
+                            project_id: projectId,
+                            path: normalizedPath,
+                            content: file.content,
+                            updated_at: new Date().toISOString()
+                        },
+                        {
+                            onConflict: 'project_id,path',
+                            ignoreDuplicates: false
+                        }
+                    );
 
-                if (deleteError) {
-                    console.error(`  Delete error for ${normalizedPath}:`, deleteError);
-                }
-
-                const { error: insertError } = await supabase
-                    .from('files')
-                    .insert({
-                        project_id: projectId,
-                        path: normalizedPath,
-                        content: file.content
-                    });
-
-                if (insertError) {
-                    console.error(`  Insert error for ${normalizedPath}:`, insertError);
+                if (upsertError) {
+                    console.error(`  Upsert error for ${normalizedPath}:`, upsertError);
                 } else {
                     console.log(`  ✅ Saved: ${normalizedPath}`);
                 }
