@@ -75,6 +75,9 @@ function buildGoogleFontsUrl(fonts: string[]): string {
 }
 
 export default function SimplePreview({ files }: SimplePreviewProps) {
+    const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
     // Build a complete HTML document from the files
@@ -366,9 +369,7 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
         }
     }, [htmlContent, refreshKey]);
 
-    const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
-    const [isFullscreen, setIsFullscreen] = useState(false);
-    const [refreshKey, setRefreshKey] = useState(0);
+
 
     const handleRefresh = () => {
         setRefreshKey(prev => prev + 1);
