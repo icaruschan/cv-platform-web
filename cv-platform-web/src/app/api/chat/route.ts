@@ -17,7 +17,7 @@ const openai = new OpenAI({
     },
 });
 
-const GEMINI_MODEL = process.env.GEMINI_FLASH_MODEL || "google/gemini-3-flash-preview";
+const GEMINI_MODEL = process.env.GEMINI_PRO_MODEL || "google/gemini-3-pro-preview";
 
 export async function POST(request: Request) {
     const thoughtSteps: ThoughtStep[] = [];
