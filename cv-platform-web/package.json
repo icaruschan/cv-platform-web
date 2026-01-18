@@ -11,6 +11,7 @@
   "dependencies": {
     "@codesandbox/sandpack-react": "^2.20.0",
     "@mendable/firecrawl-js": "^4.10.0",
+    "@monaco-editor/react": "^4.7.0",
     "@openrouter/sdk": "^0.3.12",
     "@phosphor-icons/react": "^2.1.10",
     "@react-email/components": "^1.0.3",
