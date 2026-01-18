@@ -156,14 +156,22 @@ async function generateAllSpecsInOneCall(
 
     const sectionList = sections.map((s, i) => `${i + 1}. ${s.name.toUpperCase()}: ${s.description}`).join('\n');
 
-    const systemPrompt = `You are a world-class UI/UX Architect creating production-ready specifications.
+    const systemPrompt = `You are a UI/UX Architect creating production-ready specifications.
+
+## ⚠️ CRITICAL: STAY FAITHFUL TO THE USER'S VIBE
+- The user's vibe description is: "${brief.style.vibe}"
+- Use the user's EXACT WORDS when describing the visual style
+- Do NOT invent new aesthetic labels (e.g., don't replace "sleek professional" with "high-tech luxury")
+- Do NOT add elaborate design systems the user didn't ask for (no "micro-grids", "technical markers", "atmospheric glows" unless explicitly requested)
+- Keep the design direction SIMPLE and CLEAN unless the user asks for complexity
+- If the user says "modern professional" — give them modern and professional, not fintech-meets-creative-agency
 
 Your task is to generate TWO documents in a single response:
 
 1. **PROJECT_REQUIREMENTS.md** - High-level technical requirements
 2. **SECTION_SPECS.md** - Detailed specs for each section
 
-## STYLE GUIDE (Already defined):
+## STYLE GUIDE (From real inspiration sites):
 ${styleGuide}
 
 ${MANDATORY_REQUIREMENTS}
@@ -179,13 +187,13 @@ Respond with EXACTLY this structure:
 # Project Requirements
 
 ## Overview
-[Brief summary of the portfolio]
+[Brief summary — use the user's vibe description verbatim]
 
 ## Technical Stack
 - Framework: Next.js with Pages Router
 - Styling: Tailwind CSS + custom CSS
 - Animations: Framer Motion
-- Fonts: Google Fonts
+- Fonts: Google Fonts (from style guide)
 
 ## Sections
 [List each section with brief requirements]
@@ -209,13 +217,13 @@ ${sections.map(s => `## ${s.name.charAt(0).toUpperCase() + s.name.slice(1)} Sect
 ${s.description}
 
 ### Layout
-[Describe layout: container, grid, spacing]
+[Describe layout: container, grid, spacing — keep simple]
 
 ### Components
-[List key components with brief specs]
+[List key components with brief specs — no elaborate effects unless requested]
 
 ### Animations
-[Entrance animations, hover states]
+[Entrance animations, hover states — match vibe: professional = subtle, playful = bouncy]
 
 ### Responsive
 [Mobile/tablet/desktop breakpoints]
@@ -224,7 +232,7 @@ ${s.description}
 
 ---END---
 
-Be concise but specific. Focus on actionable specs the builder can implement.`;
+Be concise. Focus on what the user ACTUALLY asked for. Do not over-engineer.`;
 
     const userMessage = `## Brief
 
@@ -251,7 +259,7 @@ Generate the PROJECT_REQUIREMENTS.md and SECTION_SPECS.md now.`;
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userMessage }
             ],
-            temperature: 0.6,
+            temperature: 0.3,
             max_tokens: 4000
         });
 
