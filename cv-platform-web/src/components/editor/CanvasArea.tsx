@@ -55,6 +55,7 @@ export default function CanvasArea({ visualEditMode = false }: CanvasAreaProps) 
                 onRefresh={handleRefresh}
                 isFullscreen={isFullscreen}
                 onFullscreenToggle={() => setIsFullscreen(!isFullscreen)}
+                onOpenNewTab={() => { }}
             />
 
             {/* Visual Edit Mode Indicator */}
