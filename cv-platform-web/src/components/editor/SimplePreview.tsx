@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import PreviewToolbar from './PreviewToolbar';
 
@@ -365,7 +364,7 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
                 doc.close();
             }
         }
-    }, [htmlContent]);
+    }, [htmlContent, refreshKey]);
 
     const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -459,7 +458,6 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
                     )}
 
                     <iframe
-                        key={refreshKey}
                         ref={iframeRef}
                         className="w-full h-full border-0 flex-1"
                         sandbox="allow-scripts allow-same-origin"
@@ -469,10 +467,6 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
             </div>
         </div>
     );
-
-    if (isFullscreen) {
-        return createPortal(content, document.body);
-    }
 
     return content;
 }
