@@ -244,6 +244,9 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
                     // Run code with the proxy as scope
                     const runner = new Function('sandbox', 'with(sandbox) { ' + compiled + ' }');
                     runner(sandboxProxy);
+                    
+                    // Initialize Visual Editing after app loads
+                    initVisualEditing();
                 } catch (e) {
                     showError('Execution Error', e);
                 }
@@ -252,6 +255,98 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
                 showError('Setup Error', err);
             }
         });
+        
+        // Visual Editing Implementation
+        function initVisualEditing() {
+            let enabled = false;
+            
+            // Listen for enable/disable from parent
+            window.addEventListener('message', (event) => {
+                if (event.data?.type === 'VISUAL_EDITING_TOGGLE') {
+                    enabled = event.data.enabled;
+                    updateVisualEditing();
+                }
+            });
+            
+            // Notify parent we're ready
+            window.parent.postMessage({ type: 'VISUAL_EDITING_READY' }, '*');
+            
+            function updateVisualEditing() {
+                if (enabled) {
+                    document.body.style.cursor = 'crosshair';
+                    document.addEventListener('mouseover', handleMouseOver, true);
+                    document.addEventListener('mouseout', handleMouseOut, true);
+                    document.addEventListener('click', handleClick, true);
+                } else {
+                    document.body.style.cursor = '';
+                    document.removeEventListener('mouseover', handleMouseOver, true);
+                    document.removeEventListener('mouseout', handleMouseOut, true);
+                    document.removeEventListener('click', handleClick, true);
+                    clearHighlights();
+                }
+            }
+            
+            function handleMouseOver(e) {
+                if (!enabled) return;
+                e.stopPropagation();
+                clearHighlights();
+                if (e.target !== document.body && e.target !== document.documentElement && e.target.id !== 'root') {
+                    e.target.style.outline = '2px solid #3b82f6';
+                    e.target.style.outlineOffset = '2px';
+                    e.target.setAttribute('data-ve-hover', 'true');
+                }
+            }
+            
+            function handleMouseOut(e) {
+                if (!enabled) return;
+                e.target.style.outline = '';
+                e.target.removeAttribute('data-ve-hover');
+            }
+            
+            function handleClick(e) {
+                if (!enabled) return;
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const target = e.target;
+                if (target === document.body || target === document.documentElement || target.id === 'root') return;
+                
+                // Add persistent selection highlight
+                clearHighlights();
+                target.style.outline = '3px solid #10b981';
+                target.style.outlineOffset = '2px';
+                target.setAttribute('data-ve-selected', 'true');
+                
+                window.parent.postMessage({
+                    type: 'ELEMENT_SELECTED',
+                    payload: {
+                        tag: target.tagName.toLowerCase(),
+                        id: target.id || null,
+                        className: target.className || null,
+                        textContent: (target.innerText || '').substring(0, 50),
+                        selectorPath: buildSelectorPath(target)
+                    }
+                }, '*');
+            }
+            
+            function clearHighlights() {
+                document.querySelectorAll('[data-ve-hover], [data-ve-selected]').forEach(el => {
+                    el.style.outline = '';
+                    el.removeAttribute('data-ve-hover');
+                    el.removeAttribute('data-ve-selected');
+                });
+            }
+            
+            function buildSelectorPath(el) {
+                if (el.id) return '#' + el.id;
+                const tag = el.tagName.toLowerCase();
+                if (el.className && typeof el.className === 'string') {
+                    const first = el.className.split(' ')[0];
+                    if (first) return tag + '.' + first;
+                }
+                return tag;
+            }
+        }
     </script>
 </body>
 </html>`;
@@ -365,10 +460,9 @@ function generateComponentCode(components: Record<string, string>, appCode: stri
             }
         });
 
-        // useVisualEditing stub - the hook is injected but we need a no-op in preview
-        function useVisualEditing() {
-            return { enabled: false };
-        }
+        // useVisualEditing is now implemented natively in the iframe (see initVisualEditing)
+        // Keep a stub for compatibility with injected code
+        function useVisualEditing() { return {}; }
 
         // Components
         ${stubComponents}
