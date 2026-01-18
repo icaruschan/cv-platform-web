@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, ReactNode } from 'react';
+import { useState, useEffect, useCallback, ReactNode } from 'react';
 import { motion } from 'framer-motion';
 
 interface EditorLayoutProps {
@@ -18,8 +18,12 @@ export default function EditorLayout({
     projectName = 'Untitled Project',
     status = 'draft'
 }: EditorLayoutProps) {
-    const [sidebarWidth] = useState(320);
+    const [sidebarWidth, setSidebarWidth] = useState(360);
+    const [isResizing, setIsResizing] = useState(false);
     const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview');
+
+    const MIN_WIDTH = 280;
+    const MAX_WIDTH = 600;
 
     const statusConfig = {
         draft: { label: 'Draft', color: 'bg-gray-400' },
@@ -29,6 +33,44 @@ export default function EditorLayout({
     };
 
     const currentStatus = statusConfig[status];
+
+    // Handle mouse move during resize
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (!isResizing) return;
+        e.preventDefault();
+        const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, e.clientX));
+        setSidebarWidth(newWidth);
+    }, [isResizing]);
+
+    // Handle mouse up to stop resizing
+    const handleMouseUp = useCallback(() => {
+        setIsResizing(false);
+    }, []);
+
+    // Add/remove event listeners for resize
+    useEffect(() => {
+        if (isResizing) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        } else {
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        }
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+    }, [isResizing, handleMouseMove, handleMouseUp]);
+
+    const startResizing = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizing(true);
+    }, []);
 
     return (
         <div className="h-screen w-screen flex flex-col overflow-hidden bg-[var(--background)]">
@@ -52,8 +94,8 @@ export default function EditorLayout({
                     <button
                         onClick={() => setViewMode('preview')}
                         className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${viewMode === 'preview'
-                                ? 'bg-[var(--foreground)] text-white'
-                                : 'text-[var(--text-secondary)] hover:bg-[var(--background-tertiary)]'
+                            ? 'bg-[var(--foreground)] text-white'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--background-tertiary)]'
                             }`}
                     >
                         Preview
@@ -61,8 +103,8 @@ export default function EditorLayout({
                     <button
                         onClick={() => setViewMode('code')}
                         className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${viewMode === 'code'
-                                ? 'bg-[var(--foreground)] text-white'
-                                : 'text-[var(--text-secondary)] hover:bg-[var(--background-tertiary)]'
+                            ? 'bg-[var(--foreground)] text-white'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--background-tertiary)]'
                             }`}
                     >
                         Code
@@ -89,10 +131,21 @@ export default function EditorLayout({
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="flex flex-col bg-[var(--background-secondary)] border-r border-[var(--border-subtle)]"
-                    style={{ width: sidebarWidth, minWidth: 320, maxWidth: 500 }}
+                    className="flex flex-col bg-[var(--background-secondary)] border-r border-[var(--border-subtle)] relative"
+                    style={{ width: sidebarWidth, minWidth: MIN_WIDTH, maxWidth: MAX_WIDTH }}
                 >
                     {sidebar}
+
+                    {/* Resize Handle */}
+                    <div
+                        onMouseDown={startResizing}
+                        className={`absolute top-0 right-0 w-1 h-full cursor-col-resize group z-10
+                            ${isResizing ? 'bg-blue-500' : 'hover:bg-blue-500/50'}
+                            transition-colors duration-150`}
+                    >
+                        {/* Wider hit area for easier grabbing */}
+                        <div className="absolute top-0 -right-1 w-3 h-full" />
+                    </div>
                 </motion.aside>
 
                 {/* Right Canvas (The Preview or Code View) */}
