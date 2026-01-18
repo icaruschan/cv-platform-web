@@ -1,6 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
+import PreviewToolbar from './PreviewToolbar';
 
 interface SimplePreviewProps {
     files: Record<string, string>;
@@ -364,6 +367,48 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
         }
     }, [htmlContent]);
 
+    const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    const handleRefresh = () => {
+        setRefreshKey(prev => prev + 1);
+        // Re-write the iframe content
+        if (iframeRef.current && htmlContent) {
+            const doc = iframeRef.current.contentDocument;
+            if (doc) {
+                doc.open();
+                doc.write(htmlContent);
+                doc.close();
+            }
+        }
+    };
+
+    // Close fullscreen on Escape
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isFullscreen) {
+                setIsFullscreen(false);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isFullscreen]);
+
+    const getWidth = () => {
+        if (isFullscreen && device === 'desktop') return '100%';
+        switch (device) {
+            case 'mobile': return '375px';
+            case 'tablet': return '768px';
+            default: return '100%';
+        }
+    };
+
+    const getHeight = () => {
+        if (isFullscreen) return '100%';
+        return device === 'desktop' ? '100%' : '90%';
+    };
+
     if (!htmlContent) {
         return (
             <div className="w-full h-full flex items-center justify-center bg-slate-900">
@@ -377,14 +422,59 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
         );
     }
 
-    return (
-        <iframe
-            ref={iframeRef}
-            className="w-full h-full border-0"
-            sandbox="allow-scripts allow-same-origin"
-            title="Portfolio Preview"
-        />
+    const content = (
+        <div className={`relative w-full h-full bg-[var(--background-secondary)] flex flex-col items-center justify-center overflow-hidden
+            ${isFullscreen ? 'fixed inset-0 z-[100]' : ''}`}>
+
+            <PreviewToolbar
+                currentDevice={device}
+                onDeviceChange={setDevice}
+                onRefresh={handleRefresh}
+                isFullscreen={isFullscreen}
+                onFullscreenToggle={() => setIsFullscreen(!isFullscreen)}
+            />
+
+            <div className={`flex-1 w-full flex items-center justify-center overflow-auto 
+                ${isFullscreen ? 'p-0' : 'p-8'}`}>
+                <motion.div
+                    layout
+                    initial={false}
+                    animate={{
+                        width: getWidth(),
+                        height: getHeight(),
+                        opacity: 1
+                    }}
+                    transition={{ type: "spring", stiffness: 200, damping: 25 }}
+                    className={`relative bg-white shadow-2xl overflow-hidden flex flex-col transition-all duration-300
+                        ${device !== 'desktop'
+                            ? 'rounded-[2rem] border-[6px] border-gray-900 ring-1 ring-gray-900/50'
+                            : isFullscreen
+                                ? 'rounded-none border-0'
+                                : 'rounded-xl border border-[var(--border-subtle)]'
+                        }`}
+                >
+                    {/* Notch for mobile/tablet */}
+                    {device !== 'desktop' && (
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[30%] h-5 bg-gray-900 rounded-b-xl z-20" />
+                    )}
+
+                    <iframe
+                        key={refreshKey}
+                        ref={iframeRef}
+                        className="w-full h-full border-0 flex-1"
+                        sandbox="allow-scripts allow-same-origin"
+                        title="Portfolio Preview"
+                    />
+                </motion.div>
+            </div>
+        </div>
     );
+
+    if (isFullscreen) {
+        return createPortal(content, document.body);
+    }
+
+    return content;
 }
 
 // Helper function to generate component code
