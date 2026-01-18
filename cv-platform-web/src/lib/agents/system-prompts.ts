@@ -364,41 +364,41 @@ Before generation is complete, AI must verify:
 ### THE ONE-ACCENT RULE
 > **Pick ONE accent color from the style guide and use it EVERYWHERE. No mixing blue, pink, green, yellow across sections.**
 
-### Button Variants (USE EXACTLY THESE 3 PATTERNS)
+### Button Variants (USE SHADCN COMPONENTS)
 \`\`\`tsx
-// PRIMARY - Main CTAs only (1-2 per page max)
-<button className="bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity">
-  Get in Touch
-</button>
+// IMPORTANT: Use the pre-built Button component from @/components/ui/button
+import { Button } from "@/components/ui/button"
 
-// SECONDARY - Secondary actions, outlined style
-<button className="border-2 border-foreground bg-transparent px-6 py-3 rounded-lg font-semibold hover:bg-foreground/10 transition-colors">
+// PRIMARY - Main CTAs only
+<Button variant="default" size="lg">
+  Get in Touch
+</Button>
+
+// SECONDARY - Secondary actions
+<Button variant="outline" size="lg">
   Learn More
-</button>
+</Button>
 
 // GHOST - Tertiary/navigation actions
-<button className="bg-transparent px-4 py-2 hover:bg-muted rounded-lg transition-colors">
+<Button variant="ghost" size="sm">
   View All
-</button>
+</Button>
 \`\`\`
 
-### Color Usage Rules
+### Color Usage Rules (SHADCN SYSTEM)
 | Purpose | Use This | Never Use |
-|---------|----------|-----------| 
-| Primary CTA background | \`bg-primary\` | \`bg-blue-500\`, \`bg-indigo-600\`, etc. |
-| Accent highlights | \`bg-accent\` or \`text-accent\` | Multiple different accent colors |
-| Body text | \`text-foreground\` | Hardcoded \`text-gray-800\`, \`text-black\` |
+|---------|----------|-----------|
+| Primary CTA background | \`bg-primary\` | \`bg-blue-500\`, \`bg-indigo-600\` |
+| Body text | \`text-foreground\` | \`text-gray-800\`, \`text-black\` |
 | Muted text | \`text-muted-foreground\` | Random opacity values |
 | Card borders | \`border-border\` | Random border colors |
 | Backgrounds | \`bg-background\` or \`bg-card\` | Hardcoded colors |
 
 ### Cross-Section Consistency Checklist
-- [ ] ALL buttons across ALL sections use the same 3 variants above
-- [ ] ALL cards have the same \`rounded-xl border-2 border-border\` pattern
-- [ ] ALL shadows use \`shadow-lg\` consistently
-- [ ] ALL hover transitions use \`transition-all duration-300\`
+- [ ] ALL buttons use \`<Button />\` component from \`@/components/ui/button\`
+- [ ] ALL cards use \`bg-card text-card-foreground border-border\`
 - [ ] ALL spacing uses the 8px grid (16, 24, 32, 48, 64px)
-- [ ] Hero, Projects, Contact all use the SAME accent color
+- [ ] DO NOT OVERWRITE \`src/lib/utils.ts\` or \`src/components/ui/button.tsx\`
 
 ---
 
@@ -427,25 +427,15 @@ Before generation is complete, AI must verify:
 </div>
 \`\`\`
 
-### Social Link Button Pattern (Conditional Rendering)
+### Social Link Button Pattern (SHADCN ICON BUTTON)
 \`\`\`tsx
-{/* ONLY render if URL exists - never show broken links */}
+{/* ONLY render if URL exists */}
 {socialLinks.twitter && (
-  <a 
-    href={socialLinks.twitter}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="p-3 rounded-lg border-2 border-border hover:border-primary hover:text-primary transition-colors"
-  >
-    <TwitterIcon className="w-5 h-5" />
-  </a>
-)}
-
-{/* Same pattern for all social links */}
-{socialLinks.linkedin && (
-  <a href={socialLinks.linkedin} ...>
-    <LinkedInIcon />
-  </a>
+  <Button variant="outline" size="icon" asChild>
+    <a href={socialLinks.twitter} target="_blank" rel="noopener noreferrer">
+      <TwitterIcon className="w-4 h-4" />
+    </a>
+  </Button>
 )}
 \`\`\`
 
@@ -453,15 +443,14 @@ Before generation is complete, AI must verify:
 \`\`\`tsx
 <section className="py-24 text-center">
   <h2 className="text-4xl font-bold mb-4">{briefData.tagline || "Let's Work Together"}</h2>
-  <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-    {briefData.summary?.substring(0, 150) || "Get in touch to discuss your project."}
-  </p>
   
   {/* Only show email button if email exists */}
   {socialLinks.email && (
-    <a href={\`mailto:\${socialLinks.email}\`} className="bg-primary text-primary-foreground px-8 py-4 rounded-lg">
-      Contact Me
-    </a>
+    <Button size="lg" asChild>
+      <a href={\`mailto:\${socialLinks.email}\`}>
+        Contact Me
+      </a>
+    </Button>
   )}
 </section>
 \`\`\`

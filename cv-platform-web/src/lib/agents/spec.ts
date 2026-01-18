@@ -1,13 +1,12 @@
 /**
- * Spec Agent V2 - Single LLM Call
+ * Spec Agent V4 - AI-Powered Style Guide
  * 
- * Simplified spec agent that uses pre-built vibe style guides
- * and generates all section specs in a single LLM call.
+ * Uses Gemini Flash to generate style guides from scraped moodboard data.
+ * AI handles font mapping, color harmonization, and cohesive design decisions.
  */
 
 import OpenAI from 'openai';
 import { Brief, Moodboard } from '../types';
-import { getVibeStyleGuide } from '../vibes';
 
 const openai = new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY,
@@ -18,8 +17,10 @@ const openai = new OpenAI({
     },
 });
 
-// Use Pro model for higher quality specs
-const GEMINI_MODEL = process.env.GEMINI_PRO_MODEL || "google/gemini-3-pro-preview";
+// Gemini Flash for fast, cheap style guide generation
+const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || "google/gemini-3-flash-preview";
+// Pro model for higher quality section specs
+const GEMINI_PRO_MODEL = process.env.GEMINI_PRO_MODEL || "google/gemini-3-pro-preview";
 
 // Types
 interface SpecOutput {
@@ -65,6 +66,239 @@ These requirements MUST be met regardless of the style guide or moodboard aesthe
 - Never sacrifice accessibility for aesthetics
 `;
 
+// ============================================================================
+// GOOGLE FONTS MAPPER
+// ============================================================================
+
+// Known Google Fonts (safe to use)
+const GOOGLE_FONTS = new Set([
+    'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Oswald', 'Raleway',
+    'Nunito', 'Merriweather', 'Playfair Display', 'Rubik', 'Poppins', 'Outfit',
+    'Plus Jakarta Sans', 'Space Grotesk', 'Syne', 'DM Sans', 'Manrope', 'Lora',
+    'Work Sans', 'Fira Code', 'JetBrains Mono', 'Source Code Pro', 'IBM Plex Mono',
+    'Archivo', 'Clash Display', 'Space Mono', 'Inconsolata', 'Geist', 'Geist Mono'
+]);
+
+// Map proprietary/paid fonts to Google Fonts alternatives
+const FONT_ALTERNATIVES: Record<string, string> = {
+    // Geometric Sans
+    'circular': 'Inter',
+    'sf pro': 'Inter',
+    'sf pro display': 'Inter',
+    'sf pro text': 'Inter',
+    'product sans': 'Outfit',
+    'gotham': 'Montserrat',
+    'proxima nova': 'Montserrat',
+    'futura': 'Outfit',
+    'century gothic': 'Poppins',
+    // Humanist Sans
+    'avenir': 'Nunito',
+    'avenir next': 'Nunito',
+    'gill sans': 'Lato',
+    'myriad pro': 'Open Sans',
+    'segoe ui': 'Open Sans',
+    'helvetica': 'Inter',
+    'helvetica neue': 'Inter',
+    'arial': 'Inter',
+    // Serif
+    'georgia': 'Merriweather',
+    'times new roman': 'Lora',
+    'garamond': 'Cormorant Garamond',
+    // Mono
+    'sf mono': 'JetBrains Mono',
+    'consolas': 'Fira Code',
+    'monaco': 'Source Code Pro',
+    'menlo': 'JetBrains Mono',
+    'courier new': 'Inconsolata',
+};
+
+function mapToGoogleFont(fontName: string | undefined, fallback: string): string {
+    if (!fontName || !fontName.trim()) return fallback;
+
+    const cleaned = fontName.trim();
+    const lower = cleaned.toLowerCase();
+
+    // Check if it's already a known Google Font
+    if (GOOGLE_FONTS.has(cleaned)) return cleaned;
+
+    // Check case-insensitive
+    for (const gf of GOOGLE_FONTS) {
+        if (gf.toLowerCase() === lower) return gf;
+    }
+
+    // Check for alternatives
+    if (FONT_ALTERNATIVES[lower]) return FONT_ALTERNATIVES[lower];
+
+    // Partial match in alternatives
+    for (const [key, value] of Object.entries(FONT_ALTERNATIVES)) {
+        if (lower.includes(key) || key.includes(lower)) return value;
+    }
+
+    // Return the original (might work) or fallback
+    console.log(`   ⚠️ Unknown font "${cleaned}", falling back to "${fallback}"`);
+    return fallback;
+}
+
+// ============================================================================
+// AI-POWERED STYLE GUIDE GENERATOR
+// ============================================================================
+
+async function generateStyleGuideWithAI(moodboard: Moodboard, brief: Brief): Promise<string> {
+    const googleFontsList = Array.from(GOOGLE_FONTS).join(', ');
+
+    const systemPrompt = `You are a Design Systems Engineer creating CSS-ready style guides.
+
+## YOUR TASK
+Convert the scraped moodboard data into a cohesive, production-ready style guide.
+
+## CRITICAL RULES
+1. **FONTS**: You MUST only use Google Fonts. Available: ${googleFontsList}
+   - If the scraped font isn't on this list, pick the closest Google Font alternative
+   - Example: "Circular" → "Inter", "Avenir" → "Nunito", "Helvetica" → "Inter"
+2. **COLORS**: Use the exact scraped colors. If they clash, suggest subtle adjustments.
+3. **MOTION**: Follow the motion profile physics exactly.
+4. **OUTPUT**: Return ONLY the markdown style guide, no explanations.
+
+## OUTPUT FORMAT
+Your response must be a complete STYLE_GUIDE.md with these exact sections:
+- Design Philosophy (based on vibe)
+- Color Palette (CSS variables with exact hex values)
+- Typography (CSS variables with Google Fonts only)
+- Spacing (8px grid system)
+- Motion Profile (stiffness, damping, stagger values)
+- UI Patterns (card, button, layout descriptions)
+- Visual Direction`;
+
+    const moodboardData = `
+## User's Vibe
+"${brief.style.vibe}"
+
+## Scraped Colors
+- Primary: ${moodboard.color_palette.primary}
+- Secondary: ${moodboard.color_palette.secondary}
+- Accent: ${moodboard.color_palette.accent}
+- Background: ${moodboard.color_palette.background}
+- Surface: ${moodboard.color_palette.surface}
+- Text: ${moodboard.color_palette.text}
+
+## Scraped Fonts (MAP TO GOOGLE FONTS)
+- Heading: ${moodboard.typography.heading_font} → pick closest Google Font
+- Body: ${moodboard.typography.body_font} → pick closest Google Font
+- Mono: ${moodboard.typography.mono_font} → pick closest Google Font
+
+## Motion Profile
+- Profile: ${moodboard.motion.profile}
+- Description: ${moodboard.motion.description}
+- Physics: ${moodboard.motion.profile === 'TECH' ? 'stiffness: 150, damping: 15' : moodboard.motion.profile === 'BOLD' ? 'stiffness: 300, damping: 20' : 'stiffness: 70, damping: 20'}
+
+## UI Patterns
+- Card: ${moodboard.ui_patterns.card_style}
+- Button: ${moodboard.ui_patterns.button_style}
+- Layout: ${moodboard.ui_patterns.layout_structure}
+
+## Visual Direction
+${moodboard.visual_direction}
+
+${moodboard.personality ? `## Brand Personality
+- Tone: ${moodboard.personality.tone || 'Professional'}
+- Energy: ${moodboard.personality.energy || 'Balanced'}
+- Description: ${moodboard.personality.description || ''}` : ''}
+
+Generate the complete STYLE_GUIDE.md now.`;
+
+    try {
+        const response = await openai.chat.completions.create({
+            model: GEMINI_FLASH_MODEL,
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: moodboardData }
+            ],
+            temperature: 0.3,
+            max_tokens: 2000
+        });
+
+        const content = response.choices[0].message.content?.trim() || '';
+
+        // Ensure it starts with proper markdown header
+        if (!content.startsWith('#')) {
+            return `# Style Guide\n\n${content}`;
+        }
+
+        return content;
+
+    } catch (error) {
+        console.error('   ❌ AI style guide generation failed, using fallback:', error);
+        // Fall back to template version
+        return buildFallbackStyleGuide(moodboard, brief);
+    }
+}
+
+// Fallback template if AI fails
+function buildFallbackStyleGuide(moodboard: Moodboard, brief: Brief): string {
+    const headingFont = mapToGoogleFont(moodboard.typography?.heading_font, 'Inter');
+    const bodyFont = mapToGoogleFont(moodboard.typography?.body_font, 'Inter');
+    const monoFont = mapToGoogleFont(moodboard.typography?.mono_font, 'JetBrains Mono');
+
+    const motionPhysics = moodboard.motion.profile === 'TECH'
+        ? { stiffness: 150, damping: 15, stagger: '0.05s' }
+        : moodboard.motion.profile === 'BOLD'
+            ? { stiffness: 300, damping: 20, stagger: '0.08s' }
+            : { stiffness: 70, damping: 20, stagger: '0.15s' };
+
+    return `# Style Guide
+Generated from inspiration sources.
+
+## Design Philosophy
+${moodboard.visual_direction}
+
+**Vibe:** ${brief.style.vibe}
+
+---
+
+## Color Palette (CSS Variables)
+\`\`\`css
+:root {
+    --color-primary: ${moodboard.color_palette.primary};
+    --color-secondary: ${moodboard.color_palette.secondary};
+    --color-accent: ${moodboard.color_palette.accent};
+    --color-background: ${moodboard.color_palette.background};
+    --color-surface: ${moodboard.color_palette.surface};
+    --color-text: ${moodboard.color_palette.text};
+}
+\`\`\`
+
+---
+
+## Typography
+\`\`\`css
+:root {
+    --font-heading: '${headingFont}', system-ui, sans-serif;
+    --font-body: '${bodyFont}', system-ui, sans-serif;
+    --font-mono: '${monoFont}', monospace;
+}
+\`\`\`
+
+**Google Fonts Import:**
+\`\`\`css
+@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(headingFont)}:wght@400;500;600;700&family=${encodeURIComponent(bodyFont)}:wght@400;500;600&display=swap');
+\`\`\`
+
+---
+
+## Motion Profile: ${moodboard.motion.profile}
+\`\`\`typescript
+const spring = { type: "spring", stiffness: ${motionPhysics.stiffness}, damping: ${motionPhysics.damping} };
+const staggerChildren = ${motionPhysics.stagger.replace('s', '')};
+\`\`\`
+
+---
+
+## UI Patterns
+- **Card:** ${moodboard.ui_patterns.card_style}
+- **Button:** ${moodboard.ui_patterns.button_style}
+- **Layout:** ${moodboard.ui_patterns.layout_structure}
+`;
+}
 
 // ============================================================================
 // MAIN EXPORT FUNCTION
@@ -79,9 +313,9 @@ export async function generateSpecs(
     const outputs: SpecOutput[] = [];
 
     try {
-        // Step 1: Use pre-built style guide from vibe
-        console.log('   🎨 Using vibe-based STYLE_GUIDE.md...');
-        const styleGuide = getVibeStyleGuide(moodboard);
+        // Step 1: Build style guide from scraped moodboard data
+        console.log('   🎨 Building STYLE_GUIDE.md with AI...');
+        const styleGuide = await generateStyleGuideWithAI(moodboard, brief);
         outputs.push({ path: 'docs/STYLE_GUIDE.md', content: styleGuide });
 
         // Step 2: Determine sections
@@ -100,7 +334,7 @@ export async function generateSpecs(
         console.error("Spec Agent V2 Failed:", error);
         // Return minimal fallback
         return [
-            { path: 'docs/STYLE_GUIDE.md', content: getVibeStyleGuide(moodboard) },
+            { path: 'docs/STYLE_GUIDE.md', content: buildFallbackStyleGuide(moodboard, brief) },
             { path: 'docs/PROJECT_REQUIREMENTS.md', content: createFallbackRequirements(brief) }
         ];
     }
@@ -156,15 +390,31 @@ async function generateAllSpecsInOneCall(
 
     const sectionList = sections.map((s, i) => `${i + 1}. ${s.name.toUpperCase()}: ${s.description}`).join('\n');
 
-    const systemPrompt = `You are a UI/UX Architect creating production-ready specifications.
+    // Determine motion profile from moodboard
+    const motionProfile = moodboard.motion?.profile || 'STUDIO';
+    const motionPhysics = motionProfile === 'TECH'
+        ? 'stiffness: 150, damping: 15, mass: 0.8 (snappy, precise, mechanical)'
+        : 'stiffness: 70, damping: 20, mass: 1 (fluid, cinematic, elegant)';
+
+    const systemPrompt = `You are a world-class Design Systems Engineer with over 15 years of experience at top agencies like Pentagram, IDEO, and Google. You are renowned for creating aesthetically stunning, harmonious design systems that translate beautifully into award-winning websites.
 
 ## ⚠️ CRITICAL: STAY FAITHFUL TO THE USER'S VIBE
 - The user's vibe description is: "${brief.style.vibe}"
 - Use the user's EXACT WORDS when describing the visual style
 - Do NOT invent new aesthetic labels (e.g., don't replace "sleek professional" with "high-tech luxury")
-- Do NOT add elaborate design systems the user didn't ask for (no "micro-grids", "technical markers", "atmospheric glows" unless explicitly requested)
-- Keep the design direction SIMPLE and CLEAN unless the user asks for complexity
+- Do NOT add elaborate design systems the user didn't ask for
 - If the user says "modern professional" — give them modern and professional, not fintech-meets-creative-agency
+
+## YOUR DESIGN PHILOSOPHY
+- Every color choice should evoke emotion and reinforce brand identity
+- Typography must create visual hierarchy that guides the eye naturally
+- Spacing should breathe — generous whitespace is a feature, not a bug
+- Animations should feel organic and purposeful, never gimmicky
+
+## MOTION PROFILE: ${motionProfile}
+- **Physics**: type: "spring", ${motionPhysics}
+- **Feel**: ${motionProfile === 'TECH' ? 'Snappy, precise, mechanical — for developers & startups' : 'Fluid, resistance-heavy, cinematic — for creatives & designers'}
+- **Stagger**: ${motionProfile === 'TECH' ? '0.05s (rapid fire)' : '0.15s (slow and rhythmic)'}
 
 Your task is to generate TWO documents in a single response:
 
@@ -187,13 +437,19 @@ Respond with EXACTLY this structure:
 # Project Requirements
 
 ## Overview
-[Brief summary — use the user's vibe description verbatim]
+[Brief summary — use the user's vibe description verbatim: "${brief.style.vibe}"]
 
 ## Technical Stack
-- Framework: Next.js with Pages Router
-- Styling: Tailwind CSS + custom CSS
-- Animations: Framer Motion
+- Framework: React + Vite
+- Styling: Tailwind CSS + custom CSS variables
+- Animations: Framer Motion (${motionProfile} profile)
+- Icons: Phosphor Icons
 - Fonts: Google Fonts (from style guide)
+
+## Motion Profile
+- Profile: ${motionProfile}
+- Physics: ${motionPhysics}
+- All animations use spring physics, not linear eases
 
 ## Sections
 [List each section with brief requirements]
@@ -202,6 +458,7 @@ Respond with EXACTLY this structure:
 - WCAG 2.1 AA compliance
 - Semantic HTML
 - Keyboard navigation
+- Focus states on all interactive elements
 
 ## Performance
 - Core Web Vitals optimized
@@ -211,35 +468,55 @@ Respond with EXACTLY this structure:
 ---FILE: docs/SECTION_SPECS.md---
 # Section Specifications
 
-${sections.map(s => `## ${s.name.charAt(0).toUpperCase() + s.name.slice(1)} Section
+${sections.map((s, i) => `## ${i + 1}. ${s.name.charAt(0).toUpperCase() + s.name.slice(1)} Section
 
 ### Purpose
 ${s.description}
 
-### Layout
-[Describe layout: container, grid, spacing — keep simple]
+### Layout Architecture
+- Container: [max-width, padding, background]
+- Grid structure: [columns for mobile/tablet/desktop]
+- Vertical rhythm: [spacing between elements using 8px grid]
 
-### Components
-[List key components with brief specs — no elaborate effects unless requested]
+### Component Breakdown
+- [Component name with specific props/variants]
+- [Include shadcn/ui pattern references where applicable]
 
-### Animations
-[Entrance animations, hover states — match vibe: professional = subtle, playful = bouncy]
+### Content Mapping
+- [Heading] → uses: name, title, or tagline from brief
+- [Body text] → uses: summary or description from brief
+- [Images] → uses: profile image or project images from brief
 
-### Responsive
-[Mobile/tablet/desktop breakpoints]
+### Animation Choreography (Framer Motion - ${motionProfile} Profile)
+- Entry animation: [type, duration, delay, stagger]
+- Scroll-triggered: [threshold, animation]
+- Hover/interaction: [scale, color, shadow changes]
+- Physics: ${motionPhysics}
+
+### Accessibility Checklist
+- [ ] Focus states for interactive elements
+- [ ] Semantic HTML structure (section, article, nav, etc.)
+- [ ] Color contrast requirements met
+- [ ] Alt text for images
+- [ ] ARIA labels where needed
+
+### Responsive Breakpoints
+- Mobile (< 640px): [layout changes]
+- Tablet (640-1024px): [layout changes]
+- Desktop (> 1024px): [layout changes]
 
 `).join('')}
 
 ---END---
 
-Be concise. Focus on what the user ACTUALLY asked for. Do not over-engineer.`;
+Keep it under 50 lines per section. Be specific, actionable, and brilliant.`;
 
     const userMessage = `## Brief
 
-**Name:** ${brief.personal.name}
-**Role:** ${brief.personal.role}
-**Tagline:** ${brief.personal.tagline}
-**Bio:** ${brief.personal.bio || 'Not provided'}
+        ** Name:** ${brief.personal.name}
+** Role:** ${brief.personal.role}
+** Tagline:** ${brief.personal.tagline}
+** Bio:** ${brief.personal.bio || 'Not provided'}
 
 ### Vibe
 ${brief.style.vibe}
@@ -254,7 +531,7 @@ Generate the PROJECT_REQUIREMENTS.md and SECTION_SPECS.md now.`;
 
     try {
         const response = await openai.chat.completions.create({
-            model: GEMINI_MODEL,
+            model: GEMINI_PRO_MODEL,
             messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userMessage }
@@ -339,27 +616,27 @@ function createFallbackRequirements(brief: Brief): string {
 Portfolio website for ${brief.personal.name}, a ${brief.personal.role}.
 
 ## Technical Stack
-- Framework: Next.js with Pages Router
-- Styling: Tailwind CSS
-- Animations: Framer Motion
-- Fonts: Google Fonts (Inter)
+        - Framework: Next.js with Pages Router
+            - Styling: Tailwind CSS
+                - Animations: Framer Motion
+                    - Fonts: Google Fonts(Inter)
 
 ## Sections
-1. Hero - Introduction with name, role, and CTA
-2. About - Personal story and background
-3. Projects - Work showcase
-4. Contact - Contact information and socials
+    1. Hero - Introduction with name, role, and CTA
+    2. About - Personal story and background
+    3. Projects - Work showcase
+    4. Contact - Contact information and socials
 
 ## Accessibility
-- WCAG 2.1 AA compliance
-- Semantic HTML structure
-- Keyboard navigation support
+        - WCAG 2.1 AA compliance
+            - Semantic HTML structure
+                - Keyboard navigation support
 
 ## Performance
-- Optimized Core Web Vitals
-- Lazy loading for images
-- Minimal JavaScript bundle
-`;
+        - Optimized Core Web Vitals
+            - Lazy loading for images
+                - Minimal JavaScript bundle
+            `;
 }
 
 function createFallbackSectionSpecs(sections: Section[]): string {
@@ -372,25 +649,25 @@ function createFallbackSectionSpecs(sections: Section[]): string {
 ${section.description}
 
 ### Layout
-- Full-width container with max-width 1200px
-- Responsive padding: 20px mobile, 40px tablet, 80px desktop
-- Center-aligned with appropriate whitespace
+        - Full - width container with max - width 1200px
+            - Responsive padding: 20px mobile, 40px tablet, 80px desktop
+                - Center - aligned with appropriate whitespace
 
 ### Components
-- Section heading with subtle animation
-- Content appropriate to section purpose
-- Clear visual hierarchy
+        - Section heading with subtle animation
+            - Content appropriate to section purpose
+                - Clear visual hierarchy
 
 ### Animations
-- Fade-up on scroll into view
-- Subtle hover states on interactive elements
+        - Fade - up on scroll into view
+            - Subtle hover states on interactive elements
 
 ### Responsive
-- Mobile: Single column, stacked layout
-- Tablet: 2 columns where appropriate
-- Desktop: Full layout with all features
+        - Mobile: Single column, stacked layout
+            - Tablet: 2 columns where appropriate
+                - Desktop: Full layout with all features
 
-`;
+                    `;
     }
 
     return content;
