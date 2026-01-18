@@ -74,6 +74,13 @@ export default function EditorLayout({
 
     return (
         <div className="h-screen w-screen flex flex-col overflow-hidden bg-[var(--background)]">
+            {/* Prevent iframe interference during resize */}
+            {isResizing && (
+                <style>{`
+                    iframe { pointer-events: none !important; }
+                `}</style>
+            )}
+
             {/* Top Header Bar */}
             <header className="h-14 border-b border-[var(--border-subtle)] flex items-center justify-between px-4 bg-[var(--background)]">
                 {/* Left: Project Info */}
@@ -139,12 +146,25 @@ export default function EditorLayout({
                     {/* Resize Handle */}
                     <div
                         onMouseDown={startResizing}
-                        className={`absolute top-0 right-0 w-1 h-full cursor-col-resize group z-10
-                            ${isResizing ? 'bg-blue-500' : 'hover:bg-blue-500/50'}
-                            transition-colors duration-150`}
+                        onDoubleClick={() => setSidebarWidth(360)} // Double-click to reset
+                        className="absolute top-0 -right-2 w-4 h-full cursor-col-resize z-20 group flex items-center justify-center"
                     >
-                        {/* Wider hit area for easier grabbing */}
-                        <div className="absolute top-0 -right-1 w-3 h-full" />
+                        {/* Visual grab bar */}
+                        <div
+                            className={`w-1 h-full transition-all duration-150 flex items-center justify-center
+                                ${isResizing
+                                    ? 'bg-blue-500 w-1.5'
+                                    : 'bg-transparent group-hover:bg-blue-400/60'
+                                }`}
+                        >
+                            {/* Grip dots - visible on hover */}
+                            <div className={`flex flex-col gap-1 transition-opacity duration-150
+                                ${isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                                <div className="w-1 h-1 rounded-full bg-blue-500"></div>
+                                <div className="w-1 h-1 rounded-full bg-blue-500"></div>
+                                <div className="w-1 h-1 rounded-full bg-blue-500"></div>
+                            </div>
+                        </div>
                     </div>
                 </motion.aside>
 
