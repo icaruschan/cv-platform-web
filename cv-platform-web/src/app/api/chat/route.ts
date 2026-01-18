@@ -156,6 +156,12 @@ ${userPrompt}
         });
 
         let errors = detectErrors(updates);
+
+        // Filter out REQUIREMENT-level errors for chat edits
+        // These checks are designed for initial generation, not incremental edits
+        // They cause false positives when editing individual files
+        errors = errors.filter(e => !e.message.includes('⚠️ REQUIREMENT:'));
+
         const valDuration = Math.round((Date.now() - valStart) / 1000);
         thoughtSteps[thoughtSteps.length - 1].duration = valDuration;
         thoughtSteps[thoughtSteps.length - 1].details = errors.map(e => `${e.file}: ${e.message}`);
@@ -177,6 +183,8 @@ ${userPrompt}
 
             // Re-validate (optional, for logging)
             errors = detectErrors(finalFiles);
+            // Also filter REQUIREMENT errors after re-validation
+            errors = errors.filter(e => !e.message.includes('⚠️ REQUIREMENT:'));
         }
 
         // Check for critical (non-fixable) errors
