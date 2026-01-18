@@ -17,6 +17,7 @@ interface PreviewToolbarProps {
     onRefresh: () => void;
     isFullscreen: boolean;
     onFullscreenToggle: () => void;
+    onOpenNewTab: () => void;
 }
 
 export default function PreviewToolbar({
@@ -24,14 +25,15 @@ export default function PreviewToolbar({
     currentDevice,
     onRefresh,
     isFullscreen,
-    onFullscreenToggle
+    onFullscreenToggle,
+    onOpenNewTab
 }: PreviewToolbarProps) {
     return (
         <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className={`flex items-center gap-2 p-1.5 bg-white/90 backdrop-blur-md border border-[var(--border-subtle)] rounded-full shadow-sm z-50 transition-all hover:shadow-md 
-                ${isFullscreen ? 'fixed top-4 left-1/2 -translate-x-1/2' : 'absolute top-4 left-1/2 -translate-x-1/2'}`}
+                ${isFullscreen ? 'fixed bottom-6 left-1/2 -translate-x-1/2' : 'absolute bottom-6 left-1/2 -translate-x-1/2'}`}
         >
             {/* Device Selector Group */}
             <div className="flex items-center gap-1 border-r border-[var(--border-subtle)] pr-2 mr-1">
@@ -91,7 +93,7 @@ export default function PreviewToolbar({
                 <button
                     className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors rounded-full hover:bg-[var(--background-secondary)]"
                     title="Open in New Tab"
-                    onClick={() => { /* TODO: Implement open in new tab logic */ }}
+                    onClick={onOpenNewTab}
                 >
                     <ArrowSquareOut size={18} />
                 </button>

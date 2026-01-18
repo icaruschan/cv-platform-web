@@ -422,6 +422,13 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
         );
     }
 
+    const handleOpenNewTab = () => {
+        if (!htmlContent) return;
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+    };
+
     const content = (
         <div className={`relative w-full h-full bg-[var(--background-secondary)] flex flex-col items-center justify-center overflow-hidden
             ${isFullscreen ? 'fixed inset-0 z-[100]' : ''}`}>
@@ -432,6 +439,7 @@ export default function SimplePreview({ files }: SimplePreviewProps) {
                 onRefresh={handleRefresh}
                 isFullscreen={isFullscreen}
                 onFullscreenToggle={() => setIsFullscreen(!isFullscreen)}
+                onOpenNewTab={handleOpenNewTab}
             />
 
             <div className={`flex-1 w-full flex items-center justify-center overflow-auto 
