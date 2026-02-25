@@ -370,63 +370,7 @@ async function scrapeListPage(platform: Platform, listUrl: string): Promise<Plat
     });
 }
 
-// ============================================================================
-// STEP 0: EXTRACT SEARCH VIBE
-// ============================================================================
 
-async function extractSearchVibe(fullVibe: string): Promise<string> {
-    // If already short enough (under 50 chars), use as-is
-    if (fullVibe.length <= 50) {
-        console.log(`   ✅ Vibe already short enough: "${fullVibe}"`);
-        return fullVibe;
-    }
-
-    console.log(`   🔄 Condensing long vibe (${fullVibe.length} chars)...`);
-
-    // Fallback function - extract meaningful keywords from vibe
-    const getFallbackVibe = (): string => {
-        const designTerms = ['minimalist', 'modern', 'playful', 'dark', 'light', 'neobrutalist',
-            'corporate', 'creative', 'elegant', 'bold', 'clean', 'tech', 'portfolio', 'sleek', 'animated'];
-        const vibeWords = fullVibe.toLowerCase().split(/\s+/);
-        const matchedTerms = designTerms.filter(term => vibeWords.some(w => w.includes(term)));
-
-        if (matchedTerms.length >= 2) {
-            return matchedTerms.slice(0, 3).map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' ') + ' Portfolio';
-        }
-        // Default fallback: first 5 words
-        return fullVibe.split(' ').slice(0, 5).join(' ');
-    };
-
-    try {
-        const response = await openai.chat.completions.create({
-            model: GEMINI_MODEL,
-            messages: [
-                {
-                    role: "system",
-                    content: "You are a design curator. Extract the core visual style from the description into a SHORT search query (3-5 words max). Examples: 'Minimalist Dark Portfolio', 'Neobrutalist Tech Site', 'Sleek Animated Professional'. Output ONLY the short phrase, nothing else."
-                },
-                { role: "user", content: fullVibe }
-            ],
-            max_tokens: 30,
-            temperature: 0.3
-        });
-
-        const shortVibe = response.choices[0].message.content?.trim().replace(/['"]/g, '') || '';
-
-        // Validate the response
-        if (!shortVibe || shortVibe.length < 3) {
-            console.warn(`   ⚠️ LLM returned empty/invalid vibe, using fallback...`);
-            return getFallbackVibe();
-        }
-
-        console.log(`   ✅ Condensed vibe: "${shortVibe}"`);
-        return shortVibe;
-
-    } catch (error) {
-        console.warn(`   ⚠️ Failed to condense vibe: ${error instanceof Error ? error.message : error}`);
-        return getFallbackVibe();
-    }
-}
 
 // ============================================================================
 // TAVILY FALLBACK: SEARCH DESIGN INSPIRATION

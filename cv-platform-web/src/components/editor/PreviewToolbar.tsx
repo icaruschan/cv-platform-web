@@ -32,8 +32,7 @@ export default function PreviewToolbar({
         <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`flex items-center gap-2 p-1.5 bg-white/90 backdrop-blur-md border border-[var(--border-subtle)] rounded-full shadow-sm z-50 transition-all hover:shadow-md 
-                ${isFullscreen ? 'fixed bottom-6 left-1/2 -translate-x-1/2' : 'absolute bottom-6 left-1/2 -translate-x-1/2'}`}
+            className="flex items-center gap-2 p-1.5 bg-[var(--background)]/90 backdrop-blur-md border border-[var(--border-subtle)] rounded-full shadow-sm z-50 transition-all hover:shadow-md absolute bottom-6 left-1/2 -translate-x-1/2"
         >
             {/* Device Selector Group */}
             <div className="flex items-center gap-1 border-r border-[var(--border-subtle)] pr-2 mr-1">

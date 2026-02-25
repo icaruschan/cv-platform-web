@@ -5,7 +5,7 @@ import ChatSidebar from '@/components/editor/ChatSidebar';
 import WaitingRoom from '@/components/editor/WaitingRoom';
 import { FeedItem } from '@/components/editor/ProcessFeed';
 import { SelectedElement } from '@/lib/visual-editing';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 
 // Mock data for demonstration
 const mockMessages: FeedItem[] = [
@@ -56,7 +56,7 @@ const mockMessages: FeedItem[] = [
     },
 ];
 
-export default function DemoPage() {
+function DemoPageContent() {
     const [messages, setMessages] = useState<FeedItem[]>(mockMessages);
     const [isStreaming, setIsStreaming] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
@@ -168,5 +168,13 @@ export default function DemoPage() {
             projectName="Portfolio Alchemy"
             status="ready"
         />
+    );
+}
+
+export default function DemoPage() {
+    return (
+        <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center">Loading...</div>}>
+            <DemoPageContent />
+        </Suspense>
     );
 }

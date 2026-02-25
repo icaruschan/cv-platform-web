@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { ChatRequest } from '../../../lib/types';
 import { MOTION_SYSTEM_PROMPT, TECHNICAL_CONSTRAINTS_PROMPT } from '../../../lib/agents/system-prompts';
 import { detectErrors, autoFixErrors, ThoughtStep } from '../../../lib/agents/builder';
+import { useEditCredit } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 
 export const maxDuration = 120; // 2 minutes
@@ -32,7 +33,24 @@ export async function POST(request: Request) {
     });
 
     try {
-        const { messages, currentFiles, projectId } = await request.json() as ChatRequest & { projectId?: string };
+        const { messages, currentFiles, projectId, sessionToken } = await request.json() as ChatRequest & { projectId?: string, sessionToken?: string };
+
+        // Check Session Limits
+        if (sessionToken) {
+            const hasCredit = await useEditCredit(sessionToken);
+            if (!hasCredit) {
+                return NextResponse.json({
+                    message: "You've reached your free edit limit.",
+                    error: "LIMIT_REACHED",
+                    thoughtSteps: [{
+                        id: 'limit-error',
+                        type: 'error',
+                        message: 'Edit limit reached. Upgrade for unlimited edits.'
+                    }]
+                }, { status: 403 });
+            }
+        }
+
         const userPrompt = messages[messages.length - 1].content;
 
         const systemPrompt = `You are the AI Editor for a Portfolio Builder.

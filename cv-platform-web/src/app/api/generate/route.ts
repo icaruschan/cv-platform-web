@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { Brief } from '@/lib/types';
+import { createSession } from '@/lib/session';
 import { Resend } from 'resend';
 import OpenAI from 'openai';
 
@@ -20,14 +21,61 @@ const openai = new OpenAI({
 
 const FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || "google/gemini-3-flash-preview";
 
+// CORS headers for the onboarding app (may run on a different origin)
+const CORS_HEADERS = {
+    'Access-Control-Allow-Origin': process.env.ONBOARDING_ORIGIN || '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+export async function OPTIONS() {
+    return NextResponse.json(null, { headers: CORS_HEADERS });
+}
+
 export async function POST(request: Request) {
     try {
         const body = await request.json();
         let brief = body.brief as Brief;
+        const checkoutId = body.checkout_id as string | undefined;
 
-        // --- N8N / Flat Payload Handling ---
+        // ─── Payment Validation Gate ───────────────────────────────
+        // Native flow: The checkout_id is passed from the onboarding form.
+        // We check if it's already been consumed in the used_checkouts table.
+        // This replaces the 4-step n8n Polar validation chain.
+        if (checkoutId) {
+            const { data: existing } = await supabase
+                .from('used_checkouts')
+                .select('checkout_id')
+                .eq('checkout_id', checkoutId)
+                .maybeSingle();
+
+            if (existing) {
+                return NextResponse.json(
+                    { error: 'This payment has already been used to generate a portfolio.' },
+                    { status: 402, headers: CORS_HEADERS }
+                );
+            }
+
+            // Mark the checkout as consumed immediately to prevent race conditions
+            const { error: insertError } = await supabase
+                .from('used_checkouts')
+                .insert({
+                    checkout_id: checkoutId,
+                    email: brief?.personal?.email || body.email || null,
+                });
+
+            if (insertError) {
+                console.error('Failed to mark checkout as used:', insertError);
+                // Don't block — the check above already prevents double-use
+            }
+        }
+        // If no checkout_id is provided, we allow the request through
+        // (for internal/admin/testing calls via n8n or direct API)
+        // ─────────────────────────────────────────────────────────────
+
+        // --- N8N / Flat Payload Handling (Legacy) ---
         if (!brief && body.briefContent) {
-            console.log("🧩 Parsing raw n8n payload...");
+            console.log("🧩 Parsing raw n8n payload (legacy path)...");
             const rawContent = body.briefContent;
 
             const parseCompletion = await openai.chat.completions.create({
@@ -70,7 +118,10 @@ export async function POST(request: Request) {
         }
 
         if (!brief) {
-            return NextResponse.json({ error: "No brief provided" }, { status: 400 });
+            return NextResponse.json(
+                { error: "No brief provided" },
+                { status: 400, headers: CORS_HEADERS }
+            );
         }
 
         console.log(`🚀 Orchestrator: Starting for ${brief.personal.name}`);
@@ -80,7 +131,7 @@ export async function POST(request: Request) {
             .from('projects')
             .insert({
                 email: brief.personal.email || 'user@example.com',
-                status: 'draft', // Use 'draft' to pass DB constraint, background processor will update
+                status: 'draft',
                 vibe: {},
             })
             .select()
@@ -91,13 +142,17 @@ export async function POST(request: Request) {
         }
 
         const projectId = project.id;
-        const magicLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${projectId}?token=${project.magic_token}`;
+
+        // Create a session for this user
+        const session = await createSession(projectId);
+        const tokenToUse = session?.token || project.magic_token;
+
+        const magicLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/project/${projectId}?token=${tokenToUse}`;
         console.log(`🔗 Magic Link: ${magicLink}`);
 
         // 2. Trigger background processing (fire and forget)
         const processUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/generate/process`;
 
-        // Use fetch with no-wait pattern for background processing
         fetch(processUrl, {
             method: 'POST',
             headers: {
@@ -115,7 +170,7 @@ export async function POST(request: Request) {
         if (brief.personal.email) {
             try {
                 await resend.emails.send({
-                    from: 'onboarding@resend.dev',
+                    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
                     to: brief.personal.email,
                     subject: 'Your AI Portfolio is Being Built!',
                     html: `
@@ -134,12 +189,16 @@ export async function POST(request: Request) {
             success: true,
             projectId,
             magicLink,
+            sessionToken: tokenToUse,
             status: 'queued',
             message: "Your portfolio is being generated! Check the magic link to watch progress.",
-        });
+        }, { headers: CORS_HEADERS });
 
     } catch (error: any) {
         console.error("❌ Orchestrator Critical Failure:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json(
+            { error: error.message },
+            { status: 500, headers: CORS_HEADERS }
+        );
     }
 }

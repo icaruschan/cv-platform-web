@@ -124,10 +124,10 @@ function TreeItem({
             <div>
                 <button
                     onClick={() => onToggleFolder(node.path)}
-                    className="w-full flex items-center gap-1.5 py-1 text-[13px] text-[#cccccc] hover:bg-[#2a2d2e] transition-colors"
+                    className="w-full flex items-center gap-1.5 py-1 text-[13px] text-[var(--text-secondary)] hover:bg-[var(--background-tertiary)] transition-colors"
                     style={{ paddingLeft }}
                 >
-                    <span className="flex-shrink-0 text-[#858585]">
+                    <span className="flex-shrink-0 text-[var(--text-tertiary)]">
                         {isExpanded ? <CaretDown size={12} /> : <CaretRight size={12} />}
                     </span>
                     <span className="flex-shrink-0">
@@ -170,8 +170,8 @@ function TreeItem({
             onClick={() => onSelectFile(node.path)}
             className={`w-full flex items-center gap-1.5 py-1 text-[13px] transition-colors
                 ${isSelected
-                    ? 'bg-[#37373d] text-white'
-                    : 'text-[#cccccc] hover:bg-[#2a2d2e]'
+                    ? 'bg-[var(--background-tertiary)] text-[var(--foreground)]'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--background-tertiary)]'
                 }`}
             style={{ paddingLeft: paddingLeft + 16 }}
         >
@@ -186,6 +186,7 @@ function TreeItem({
 export default function CodeView({ files }: CodeViewProps) {
     const [selectedFile, setSelectedFile] = useState<string>('');
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+    const [isDark, setIsDark] = useState(true);
 
     // Build hierarchical tree from flat file list
     const fileTree = useMemo(() => buildFileTree(files), [files]);
@@ -229,6 +230,19 @@ export default function CodeView({ files }: CodeViewProps) {
         }
     }, [fileTree, files, selectedFile]);
 
+    // Listen to document.documentElement for .dark class changes
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+
+        const checkDark = () => document.documentElement.classList.contains('dark');
+        setIsDark(checkDark());
+
+        const observer = new MutationObserver(() => setIsDark(checkDark()));
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+        return () => observer.disconnect();
+    }, []);
+
     const toggleFolder = (path: string) => {
         setExpandedFolders(prev => {
             const next = new Set(prev);
@@ -242,10 +256,10 @@ export default function CodeView({ files }: CodeViewProps) {
     };
 
     return (
-        <div className="flex w-full h-full bg-[#1e1e1e] overflow-hidden text-[#cccccc] font-sans">
+        <div className="flex w-full h-full bg-[var(--background)] overflow-hidden text-[var(--text-primary)] font-sans">
             {/* Sidebar: File Explorer */}
-            <div className="w-56 flex-shrink-0 flex flex-col border-r border-[#333] bg-[#252526]">
-                <div className="h-9 px-3 flex items-center text-[11px] font-semibold text-[#bbbbbb] uppercase tracking-wider bg-[#252526]">
+            <div className="w-56 flex-shrink-0 flex flex-col border-r border-[var(--border-subtle)] bg-[var(--background-secondary)]">
+                <div className="h-9 px-3 flex items-center text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider bg-[var(--background-secondary)]">
                     File explorer
                 </div>
 
@@ -264,11 +278,11 @@ export default function CodeView({ files }: CodeViewProps) {
             </div>
 
             {/* Main Area: Editor */}
-            <div className="flex-1 flex flex-col min-w-0 bg-[#1e1e1e]">
+            <div className="flex-1 flex flex-col min-w-0 bg-[var(--background)]">
                 {/* Editor Tabs */}
-                <div className="flex bg-[#2d2d2d] h-9 overflow-x-auto border-b border-[#252526]">
+                <div className="flex bg-[var(--background-secondary)] h-9 overflow-x-auto border-b border-[var(--border-subtle)]">
                     {selectedFile && (
-                        <div className="flex items-center gap-2 px-3 bg-[#1e1e1e] text-white text-[13px] border-t-2 border-[#007fd4] min-w-[120px]">
+                        <div className="flex items-center gap-2 px-3 bg-[var(--background)] text-[var(--foreground)] text-[13px] border-t-2 border-[var(--accent-primary)] min-w-[120px]">
                             <span className="opacity-80">{getFileIcon(selectedFile)}</span>
                             <span className="truncate">{selectedFile.split('/').pop()}</span>
                         </div>
@@ -280,7 +294,7 @@ export default function CodeView({ files }: CodeViewProps) {
                     {selectedFile && files[selectedFile] ? (
                         <Editor
                             height="100%"
-                            theme="vs-dark"
+                            theme={isDark ? "vs-dark" : "vs"}
                             path={selectedFile}
                             defaultLanguage={getLanguage(selectedFile)}
                             value={files[selectedFile]}

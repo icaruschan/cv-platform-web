@@ -14,6 +14,8 @@ interface ChatSidebarProps {
     onVisualEditToggle?: (enabled: boolean) => void;
     selectedElement?: SelectedElement | null;
     onClearSelection?: () => void;
+    editsRemaining?: number;
+    onOpenUpgradeModal?: () => void;
 }
 
 export default function ChatSidebar({
@@ -25,6 +27,8 @@ export default function ChatSidebar({
     onVisualEditToggle,
     selectedElement,
     onClearSelection,
+    editsRemaining,
+    onOpenUpgradeModal,
 }: ChatSidebarProps) {
     const feedEndRef = useRef<HTMLDivElement>(null);
 
@@ -80,6 +84,8 @@ export default function ChatSidebar({
                     onVisualEditToggle={onVisualEditToggle}
                     selectedElement={selectedElement}
                     onClearSelection={onClearSelection}
+                    editsRemaining={editsRemaining}
+                    onOpenUpgradeModal={onOpenUpgradeModal}
                 />
             </div>
         </div>

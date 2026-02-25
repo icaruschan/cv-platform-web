@@ -66,50 +66,75 @@ function UserMessage({ content }: { content: string }) {
     );
 }
 
-function TypewriterEffect({ text }: { text: string }) {
+function TypewriterEffect({ text, onComplete }: { text: string; onComplete?: () => void }) {
     const [displayedText, setDisplayedText] = useState("");
+    const [isComplete, setIsComplete] = useState(false);
 
     useEffect(() => {
         let index = 0;
+        setDisplayedText("");
+        setIsComplete(false);
+
         const interval = setInterval(() => {
-            setDisplayedText((prev) => {
-                if (index < text.length) {
-                    index++;
-                    return text.substring(0, index);
-                }
+            if (index < text.length) {
+                index++;
+                setDisplayedText(text.substring(0, index));
+            } else {
                 clearInterval(interval);
-                return prev;
-            });
-        }, 15); // Speed of typing
+                setIsComplete(true);
+                onComplete?.();
+            }
+        }, 12); // Slightly faster typing
 
         return () => clearInterval(interval);
-    }, [text]);
+    }, [text, onComplete]);
 
-    return <span>{displayedText}</span>;
+    // While typing, show with whitespace preserved but no markdown parsing
+    return (
+        <span className="whitespace-pre-wrap">
+            {displayedText}
+            {!isComplete && <span className="animate-pulse">▌</span>}
+        </span>
+    );
 }
 
-function AIMessage({ content, toolsUsed, isNew = false }: { content: string; toolsUsed?: number; isNew?: boolean }) {
-    const [showTools, setShowTools] = useState(false);
+// Simple markdown to HTML converter
+function parseMarkdown(text: string): string {
+    return text
+        // Escape HTML first
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        // Bold **text**
+        .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+        // Bullet points
+        .replace(/^[•-]\s*/gm, '<span class="text-[var(--accent-primary)] mr-2">•</span>')
+        // Line breaks
+        .replace(/\n/g, '<br />');
+}
+
+function AIMessage({ content, isNew = false }: { content: string; isNew?: boolean }) {
+    const [showFormatted, setShowFormatted] = useState(!isNew);
+
+    // Reset when content changes
+    useEffect(() => {
+        if (isNew) {
+            setShowFormatted(false);
+        }
+    }, [content, isNew]);
 
     return (
-        <motion.div variants={messageVariants} className="flex flex-col gap-2">
-            <div className="text-[var(--foreground)] text-sm whitespace-pre-wrap leading-relaxed">
-                {isNew ? <TypewriterEffect text={content} /> : content}
+        <motion.div variants={messageVariants} className="flex flex-col gap-1">
+            <div className="text-[var(--foreground)] text-sm leading-relaxed">
+                {!showFormatted && isNew ? (
+                    <TypewriterEffect
+                        text={content}
+                        onComplete={() => setShowFormatted(true)}
+                    />
+                ) : (
+                    <span dangerouslySetInnerHTML={{ __html: parseMarkdown(content) }} />
+                )}
             </div>
-            {toolsUsed && toolsUsed > 0 && (
-                <button
-                    onClick={() => setShowTools(!showTools)}
-                    className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors w-fit"
-                >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                    </svg>
-                    {toolsUsed} tools used
-                    <svg className={`w-3 h-3 transition-transform ${showTools ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                </button>
-            )}
         </motion.div>
     );
 }
@@ -213,7 +238,7 @@ export default function ProcessFeed({ items, isStreaming }: ProcessFeedProps) {
                                 <UserMessage content={item.content} />
                             )}
                             {item.type === 'ai_message' && (
-                                <AIMessage content={item.content} toolsUsed={item.toolsUsed} isNew={isLast} />
+                                <AIMessage content={item.content} isNew={isLast} />
                             )}
                             {item.type === 'thought' && (
                                 <ThoughtAccordion content={item.content} duration={item.duration} />

@@ -39,9 +39,48 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
         return <div>Error loading project files.</div>;
     }
 
-    // 3. Security Check (Optional V1)
-    // If we wanted to enforce token:
-    // if (project.magic_token !== token) return <div>Unauthorized</div>;
+    // 3. Token Enforcement — validate the session token against the database.
+    // Without this, anyone who knows the project ID can edit the portfolio.
+    if (!token) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-[#0a0a0a] text-white">
+                <div className="text-center space-y-3">
+                    <div className="text-4xl">🔒</div>
+                    <h1 className="text-xl font-semibold">Access Required</h1>
+                    <p className="text-gray-400 text-sm">
+                        Use the magic link from your email to access this project.
+                    </p>
+                    <a href="/recover" className="inline-block mt-4 text-sm text-violet-400 hover:text-violet-300 transition-colors">
+                        Lost your link? Request a new one →
+                    </a>
+                </div>
+            </div>
+        );
+    }
+
+    const { data: session } = await supabase
+        .from('sessions')
+        .select('token, project_id')
+        .eq('token', token)
+        .eq('project_id', id)
+        .single();
+
+    if (!session) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-[#0a0a0a] text-white">
+                <div className="text-center space-y-3">
+                    <div className="text-4xl">🔑</div>
+                    <h1 className="text-xl font-semibold">Invalid or Expired Link</h1>
+                    <p className="text-gray-400 text-sm max-w-xs">
+                        This session link is invalid or has expired. Check your email for your original access link.
+                    </p>
+                    <a href="/recover" className="inline-block mt-4 text-sm text-violet-400 hover:text-violet-300 transition-colors">
+                        Request a new access link →
+                    </a>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <EditorPage

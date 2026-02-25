@@ -27,70 +27,92 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: var(--font-sans), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-serif: var(--font-serif), 'Playfair Display', serif;
+  --font-script: var(--font-script), 'Satisfy', cursive;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 :root {
-  /* Core Backgrounds */
-  --background: #ffffff;
-  --foreground: #09090b;
+  /* Core Backgrounds - Cream / Studio Vibe */
+  --background: #faf9f7;
+  --foreground: #1a1a1a;
 
-  /* Shadcn Core Colors */
+  /* Shadcn / Core Colors */
   --card: #ffffff;
-  --card-foreground: #09090b;
+  --card-foreground: #1a1a1a;
   --popover: #ffffff;
-  --popover-foreground: #09090b;
-  --primary: #18181b;
+  --popover-foreground: #1a1a1a;
+  --primary: #1a1a1a;
   --primary-foreground: #fafafa;
-  --secondary: #f4f4f5;
-  --secondary-foreground: #18181b;
+  --secondary: #f0f0f0;
+  --secondary-foreground: #1a1a1a;
   --muted: #f4f4f5;
   --muted-foreground: #71717a;
-  --accent: #f4f4f5;
-  --accent-foreground: #18181b;
+  --accent: #f0f0f0;
+  --accent-foreground: #1a1a1a;
   --destructive: #ef4444;
   --destructive-foreground: #fafafa;
   --border: #e4e4e7;
   --input: #e4e4e7;
-  --ring: #18181b;
+  --ring: #1a1a1a;
   --radius: 0.5rem;
 
-  /* Legacy Portfolio Variables (kept for compat) */
-  --background-secondary: #FAF9F6;
-  --background-tertiary: #F5F3EF;
-  --text-secondary: #6B6B6B;
-  --text-tertiary: #9CA3AF;
-  --accent-primary: #3B82F6;
-  --accent-success: #10B981;
-  --accent-coral: #E88B8B;
-  --border-light: #E5E5E5;
-  --border-subtle: #EDE8E4;
+  /* Design System Colors */
+  --color-cream: #faf9f7;
+  --color-coral-hot: #ff6b6b;
+  --color-coral-soft: #ff8a65;
+  --color-blue-electric: #3b82f6;
+
+  /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --shadow-pill: 0 2px 8px -2px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08);
+  /* Softer shadows */
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08);
+  --shadow-pill: 0 2px 8px -2px rgb(0 0 0 / 0.08);
+
+  /* Editor-specific variables (light mode) */
+  --background-secondary: #f3f2ef;
+  --background-tertiary: #eae8e4;
+  --border-subtle: #e0ded9;
+  --border-light: #d6d4cf;
+  --accent-primary: #ea580c;
+  /* Orange 600 */
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
 }
 
 .dark {
-  --background: #09090b;
-  --foreground: #fafafa;
-  --card: #09090b;
-  --card-foreground: #fafafa;
-  --popover: #09090b;
-  --popover-foreground: #fafafa;
-  --primary: #fafafa;
-  --primary-foreground: #18181b;
-  --secondary: #27272a;
-  --secondary-foreground: #fafafa;
-  --muted: #27272a;
+  /* Dark mode - used by Editor UI */
+  --background: #0f1117;
+  --foreground: #f0f0f5;
+  --card: #1a1b23;
+  --card-foreground: #f0f0f5;
+  --popover: #1a1b23;
+  --popover-foreground: #f0f0f5;
+  --primary: #f0f0f5;
+  --primary-foreground: #0f1117;
+  --secondary: #252630;
+  --secondary-foreground: #f0f0f5;
+  --muted: #252630;
   --muted-foreground: #a1a1aa;
-  --accent: #27272a;
-  --accent-foreground: #fafafa;
-  --destructive: #7f1d1d;
+  --accent: #3d3d48;
+  --accent-foreground: #f0f0f5;
+  --destructive: #ef4444;
   --destructive-foreground: #fafafa;
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #d4d4d8;
+  --border: #2a2b35;
+  --input: #2a2b35;
+  --ring: #f0f0f5;
+
+  /* Editor-specific variables */
+  --background-secondary: #1a1b23;
+  --background-tertiary: #252630;
+  --border-subtle: #2a2b35;
+  --border-light: #35363f;
+  --accent-primary: #f97316;
+  /* Orange 500 for dark mode */
+  --text-secondary: #9ca3af;
+  --text-tertiary: #6b7280;
 }
 
 /* Remove dark mode preference - we want the warm light theme always */
@@ -102,6 +124,13 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Smooth dark mode transition */
+*,
+*::before,
+*::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* ============================================
@@ -147,5 +176,34 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Horizontal scroll styling */
+.overflow-x-auto::-webkit-scrollbar {
+  height: 6px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: var(--background-tertiary);
+  border-radius: 3px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 3px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }

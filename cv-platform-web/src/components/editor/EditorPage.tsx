@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import SimplePreview from './SimplePreview';
 import CodeView from './CodeView';
 import CanvasArea from './CanvasArea';
@@ -32,13 +33,45 @@ interface ThoughtStep {
 }
 
 export default function EditorPage({ project, files: initialFiles }: EditorPageProps) {
+    const searchParams = useSearchParams();
+    const token = searchParams.get('token');
     const [sandpackFiles, setSandpackFiles] = useState<Record<string, string>>({});
     const [isLoading, setIsLoading] = useState(true);
-    const [status, setStatus] = useState<'draft' | 'generating' | 'ready' | 'error'>('draft');
+    const [status, setStatus] = useState<'draft' | 'generating' | 'ready' | 'error' | 'publishing'>('draft');
 
     // Generation progress state (for async pipeline)
     const [generationStatus, setGenerationStatus] = useState<StatusResponse | null>(null);
     const [files, setFiles] = useState<FileRecord[]>(initialFiles);
+
+    // Publishing State
+    const [isPublishing, setIsPublishing] = useState(false);
+
+    // Session State
+    const [editsRemaining, setEditsRemaining] = useState<number | undefined>(undefined);
+    const [isPremium, setIsPremium] = useState(false);
+    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
+    // Fetch session info (also re-fetches on window focus to pick up top-up credits)
+    const fetchSession = useCallback(() => {
+        if (!token) return;
+        fetch(`/api/session?token=${token}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && typeof data.edits_remaining === 'number') {
+                    setEditsRemaining(data.edits_remaining);
+                    setIsPremium(data.is_premium);
+                }
+            })
+            .catch(err => console.error('Failed to fetch session', err));
+    }, [token]);
+
+    useEffect(() => {
+        fetchSession();
+        // Re-fetch when user comes back from payment tab
+        const handleFocus = () => fetchSession();
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
+    }, [fetchSession]);
 
     // Visual Editing State
     const [visualEditMode, setVisualEditMode] = useState(false);
@@ -273,8 +306,26 @@ body {
                         textContent: selectedElement.textContent,
                         selectorPath: selectedElement.selectorPath,
                     } : null,
+                    sessionToken: token,
                 }),
+
             });
+
+            if (response.status === 403) {
+                const errorData = await response.json();
+                if (errorData.error === 'LIMIT_REACHED') {
+                    setIsUpgradeModalOpen(true);
+                    setMessages(prev => [...prev, {
+                        id: `system-limit-${Date.now()}`,
+                        type: 'ai_message',
+                        content: "🚨 **Limit Reached**\n\nYou've used all your free edits. Upgrade to PRO for unlimited access!",
+                        toolsUsed: 0
+                    }]);
+                    setIsStreaming(false);
+                    setStatus('ready');
+                    return;
+                }
+            }
 
             if (!response.ok) throw new Error('Chat failed');
 
@@ -337,6 +388,11 @@ body {
 
             setSelectedElement(null);
             setStatus('ready');
+
+            // Decrement edits remaining optimistically
+            if (!isPremium && editsRemaining !== undefined) {
+                setEditsRemaining(prev => prev ? prev - 1 : 0);
+            }
         } catch (error) {
             console.error('Chat error:', error);
             setMessages(prev => [...prev, {
@@ -354,6 +410,48 @@ body {
         setSelectedElement(null);
     }, []);
 
+    const handlePublish = async (slug?: string) => {
+        if (isPublishing) return;
+
+        setIsPublishing(true);
+        setStatus('publishing');
+
+        try {
+            const response = await fetch('/api/publish', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ projectId: project.id, slug }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to publish');
+            }
+
+            // Success!
+            alert(`🎉 published successfully!\n\nYour site is live at:\n${data.url}`);
+            setStatus('ready');
+
+            // Add a message to the chat
+            setMessages(prev => [...prev, {
+                id: `system-publish-${Date.now()}`,
+                type: 'ai_message',
+                content: `🚀 **Site Published!**\n\nYour portfolio is live at: [${data.url}](${data.url})\n\nYou can share this link with anyone!`,
+                toolsUsed: 0
+            }]);
+
+        } catch (error: any) {
+            console.error('Publish error:', error);
+            alert(`Failed to publish: ${error.message}`);
+            setStatus('error');
+        } finally {
+            setIsPublishing(false);
+        }
+    };
+
     // Sidebar Content
     const sidebarContent = (
         <ChatSidebar
@@ -365,6 +463,8 @@ body {
             onVisualEditToggle={setVisualEditMode}
             selectedElement={selectedElement}
             onClearSelection={handleClearSelection}
+            editsRemaining={editsRemaining}
+            onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)}
         />
     );
 
@@ -394,6 +494,18 @@ body {
             codeView={<CodeView files={sandpackFiles} />}
             projectName={`Project ${project.id.slice(0, 8)}`}
             status={status}
+            onPublish={handlePublish}
+            isPublishing={isPublishing}
+            editsRemaining={editsRemaining}
+            isPremium={isPremium}
+            isUpgradeModalOpen={isUpgradeModalOpen}
+            onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)}
+            onCloseUpgradeModal={() => setIsUpgradeModalOpen(false)}
+            onUpgrade={() => {
+                // Navigate to the top-up checkout (adds 5 credits for $5)
+                // Token is passed so Polar's successUrl can redirect back to this editor
+                window.location.href = `/api/topup?token=${token}`;
+            }}
         />
     );
 }
