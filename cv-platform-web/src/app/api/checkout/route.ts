@@ -7,7 +7,7 @@ const polar = new Polar({
 });
 
 // The onboarding app URL — pass checkout_id after successful payment
-const ONBOARDING_URL = process.env.ONBOARDING_URL || "http://localhost:5173";
+const ONBOARDING_URL = process.env.ONBOARDING_URL || "/onboard";
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);

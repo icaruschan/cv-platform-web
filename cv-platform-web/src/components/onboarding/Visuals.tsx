@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { User, Lightbulb, PenTool, Layout, Monitor, Moon, BarChart3, Link as LinkIcon, AtSign, Send, Image as ImageIcon, Briefcase, Mail, Upload } from 'lucide-react';
 
@@ -315,13 +317,13 @@ export const ProjectVisual = () => (
             <CardWrapper rotate="3deg">
                 <div className="w-64 grid grid-cols-2 gap-3">
                     <div className="aspect-square bg-slate-100 rounded-xl border border-slate-200 overflow-hidden relative">
-                        <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&auto=format&fit=crop&q=60" className="w-full h-full object-cover" />
+                        <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&auto=format&fit=crop&q=60" className="w-full h-full object-cover" alt="" />
                     </div>
                     <div className="aspect-square bg-slate-100 rounded-xl border border-slate-200 overflow-hidden relative">
-                        <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400&auto=format&fit=crop&q=60" className="w-full h-full object-cover" />
+                        <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400&auto=format&fit=crop&q=60" className="w-full h-full object-cover" alt="" />
                     </div>
                     <div className="col-span-2 aspect-[2/1] bg-teal-50 rounded-xl flex items-center justify-center border border-teal-100 relative overflow-hidden">
-                        <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=60" className="w-full h-full object-cover opacity-50" />
+                        <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=60" className="w-full h-full object-cover opacity-50" alt="" />
                         <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
                                 <ImageIcon size={18} className="text-teal-400" />
@@ -332,31 +334,5 @@ export const ProjectVisual = () => (
             </CardWrapper>
         </FloatContainer>
         <BlobBackground color="bg-teal-200/40" />
-    </div>
-);
-
-export const LinkVisual = () => (
-    <div className="relative w-full h-full flex items-center justify-center">
-        <FloatContainer>
-            <CardWrapper rotate="-2deg">
-                <div className="w-64 space-y-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-cyan-100 text-cyan-600 rounded-lg"><LinkIcon size={16} /></div>
-                        <div className="h-2 bg-slate-100 w-32 rounded-full"></div>
-                    </div>
-                    <div className="w-full h-px bg-slate-100"></div>
-                    <div className="flex items-center gap-3 opacity-50">
-                        <div className="p-2 bg-slate-100 text-slate-400 rounded-lg"><LinkIcon size={16} /></div>
-                        <div className="h-2 bg-slate-100 w-24 rounded-full"></div>
-                    </div>
-                    <div className="w-full h-px bg-slate-100"></div>
-                    <div className="flex items-center gap-3 opacity-30">
-                        <div className="p-2 bg-slate-100 text-slate-400 rounded-lg"><LinkIcon size={16} /></div>
-                        <div className="h-2 bg-slate-100 w-20 rounded-full"></div>
-                    </div>
-                </div>
-            </CardWrapper>
-        </FloatContainer>
-        <BlobBackground color="bg-cyan-200/40" />
     </div>
 );

@@ -32,17 +32,6 @@ export interface Brief {
 
 /**
  * Transform native OnboardingData into the Brief JSON the agents expect.
- *
- * Mapping:
- *   fullName        → personal.name
- *   role            → personal.role
- *   tagline         → personal.tagline
- *   bio             → personal.bio
- *   email           → personal.email
- *   profileImageUrl → personal.avatar_url
- *   socialLinks.x   → socials.twitter  (key rename)
- *   projects[]      → work[]
- *   visualStyle     → style.vibe
  */
 export function mapOnboardingToBrief(
     data: OnboardingData,

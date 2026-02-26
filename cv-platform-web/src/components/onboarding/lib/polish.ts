@@ -1,28 +1,14 @@
 import type { Brief } from './brief-mapper';
 
 /**
- * AI polish endpoint URL — proxied through the main app.
- * The onboarding app calls `/api/polish` on the main app which runs Gemini Flash.
- */
-const POLISH_API_URL = import.meta.env.VITE_APP_URL
-    ? `${import.meta.env.VITE_APP_URL}/api/polish`
-    : '/api/polish';
-
-/**
  * Send the Brief to a lightweight AI polish endpoint.
  *
- * This single Gemini Flash call replaces the 2 heavy AI calls from the
- * n8n workflow (brief generation + brief parsing). It polishes:
- *
- *   1. Expands short bios (< 100 chars) into 2-3 professional sentences
- *   2. Fixes grammar and spelling
- *   3. Creates or polishes taglines
- *
- * If the polish call fails, returns the original Brief unchanged.
+ * Now that onboarding runs on the same origin as the Next.js API,
+ * we use a simple relative URL — no cross-origin config needed.
  */
 export async function polishBrief(brief: Brief): Promise<Brief> {
     try {
-        const res = await fetch(POLISH_API_URL, {
+        const res = await fetch('/api/polish', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
