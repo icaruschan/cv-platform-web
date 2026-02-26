@@ -2,6 +2,7 @@
 
 import React, { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { motion, AnimatePresence, Variants, TargetAndTransition } from 'framer-motion';
 import { OnboardingLayout } from '@/components/onboarding/Layout';
 import { TextInput, NumberInput, TextAreaInput, FileUploadInput, SocialLinksInput, ProjectCardsInput, StylePickerInput } from '@/components/onboarding/InputFields';
 import { QUESTIONS } from '@/components/onboarding/constants';
@@ -33,35 +34,143 @@ type SubmissionState =
     | { status: 'success'; magicLink: string }
     | { status: 'error'; message: string };
 
+// ─── Animation Variants ─────────────────────────────────────
+
+const pageTransition: Variants = {
+    initial: (direction: number) => ({
+        x: direction > 0 ? 40 : -40,
+        opacity: 0,
+        filter: 'blur(2px)',
+    }),
+    animate: {
+        x: 0,
+        opacity: 1,
+        filter: 'blur(0px)',
+        transition: {
+            type: 'spring',
+            stiffness: 500,
+            damping: 35,
+            mass: 0.5,
+        },
+    },
+    exit: (direction: number) => ({
+        x: direction > 0 ? -30 : 30,
+        opacity: 0,
+        filter: 'blur(2px)',
+        transition: {
+            duration: 0.15,
+            ease: [0.4, 0, 1, 1],
+        },
+    }),
+};
+
+const visualTransition: Variants = {
+    initial: { opacity: 0, scale: 0.9, y: 20 },
+    animate: {
+        opacity: 1,
+        scale: 1,
+        y: 0,
+        transition: {
+            type: 'spring',
+            stiffness: 200,
+            damping: 22,
+            delay: 0.05,
+        },
+    },
+    exit: {
+        opacity: 0,
+        scale: 0.95,
+        y: -10,
+        transition: { duration: 0.18, ease: 'easeIn' },
+    },
+};
+
+const stagger: Variants = {
+    animate: {
+        transition: {
+            staggerChildren: 0.04,
+            delayChildren: 0.05,
+        },
+    },
+};
+
+const fadeUp: Variants = {
+    initial: { opacity: 0, y: 12 },
+    animate: {
+        opacity: 1,
+        y: 0,
+        transition: { type: 'spring', stiffness: 500, damping: 30, mass: 0.5 },
+    },
+};
+
+const buttonHover: TargetAndTransition = {
+    scale: 1.02,
+    y: -1,
+    transition: { type: 'spring', stiffness: 400, damping: 17 },
+};
+
+const buttonTap: TargetAndTransition = {
+    scale: 0.97,
+    y: 0,
+};
+
+const overlayVariants: Variants = {
+    initial: { opacity: 0, scale: 0.9 },
+    animate: {
+        opacity: 1,
+        scale: 1,
+        transition: {
+            type: 'spring',
+            stiffness: 200,
+            damping: 25,
+            staggerChildren: 0.1,
+            delayChildren: 0.2,
+        },
+    },
+    exit: {
+        opacity: 0,
+        scale: 0.95,
+        transition: { duration: 0.2 },
+    },
+};
+
+const overlayItem: Variants = {
+    initial: { opacity: 0, y: 20 },
+    animate: {
+        opacity: 1,
+        y: 0,
+        transition: { type: 'spring', stiffness: 300, damping: 25 },
+    },
+};
+
+// ─── Main Component ─────────────────────────────────────────
+
 function OnboardContent() {
     const searchParams = useSearchParams();
     const checkoutId = searchParams.get('checkout_id');
 
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
+    const [direction, setDirection] = useState(1); // 1 = forward, -1 = back
     const [formData, setFormData] = useState<OnboardingData>(INITIAL_DATA);
-    const [isAnimating, setIsAnimating] = useState(false);
     const [submission, setSubmission] = useState<SubmissionState>({ status: 'idle' });
+    const [validationError, setValidationError] = useState<string | null>(null);
 
     const currentQuestion: QuestionConfig = QUESTIONS[currentStepIndex];
     const isLastStep = currentStepIndex === QUESTIONS.length - 1;
 
     const handleSubmit = async () => {
         try {
-            // Step 1: Upload profile image
             setSubmission({ status: 'uploading-image' });
             let profileImageUrl: string | null = null;
             if (formData.heroImage) {
                 profileImageUrl = await uploadProfileImage(formData.heroImage, formData.email);
             }
 
-            // Step 2: Map form data → Brief
             const rawBrief = mapOnboardingToBrief(formData, profileImageUrl);
 
-            // Step 3: Polish with AI
             setSubmission({ status: 'polishing' });
             const brief = await polishBrief(rawBrief);
 
-            // Step 4: Submit to /api/generate (same origin — no CORS needed)
             setSubmission({ status: 'submitting' });
             const res = await fetch('/api/generate', {
                 method: 'POST',
@@ -85,62 +194,38 @@ function OnboardContent() {
     };
 
     const handleNext = () => {
-        // Validation
         if (currentQuestion.required) {
             const val = formData[currentQuestion.key];
-
-            // Projects: at least 1 card with name + role filled
             if (currentQuestion.key === 'projects') {
                 const projects = val as ProjectEntry[];
                 const hasValidProject = projects.some((p) => p.name.trim() && p.role.trim());
-                if (!hasValidProject) {
-                    alert('Please add at least one project with a name and role.');
-                    return;
-                }
-            }
-            // Socials: at least one link filled
-            else if (currentQuestion.key === 'socials') {
+                if (!hasValidProject) { setValidationError('Please add at least one project with a name and role.'); return; }
+            } else if (currentQuestion.key === 'socials') {
                 const socials = val as any;
                 const hasAtLeastOne = socials && Object.values(socials).some((v: any) => v && v.toString().trim());
-                if (!hasAtLeastOne) {
-                    alert('Please add at least one social link.');
-                    return;
-                }
-            }
-            // Primitive fields
-            else if (typeof val !== 'object' && (val === '' || val === null || val === undefined)) {
-                alert('Please fill out this field to continue.');
+                if (!hasAtLeastOne) { setValidationError('Please add at least one social link.'); return; }
+            } else if (typeof val !== 'object' && (val === '' || val === null || val === undefined)) {
+                setValidationError('This field is required to continue.');
                 return;
             }
         }
 
-        if (isLastStep) {
-            handleSubmit();
-            return;
-        }
-
-        setIsAnimating(true);
-        setTimeout(() => {
-            setCurrentStepIndex((prev) => prev + 1);
-            setIsAnimating(false);
-        }, 300);
+        setValidationError(null);
+        if (isLastStep) { handleSubmit(); return; }
+        setDirection(1);
+        setCurrentStepIndex((prev) => prev + 1);
     };
 
     const handleBack = () => {
         if (currentStepIndex > 0) {
-            setIsAnimating(true);
-            setTimeout(() => {
-                setCurrentStepIndex((prev) => prev - 1);
-                setIsAnimating(false);
-            }, 300);
+            setDirection(-1);
+            setCurrentStepIndex((prev) => prev - 1);
         }
     };
 
     const updateField = (val: any) => {
-        setFormData((prev) => ({
-            ...prev,
-            [currentQuestion.key]: val,
-        }));
+        if (validationError) setValidationError(null); // Clear error on any input change
+        setFormData((prev) => ({ ...prev, [currentQuestion.key]: val }));
     };
 
     const renderInput = () => {
@@ -187,101 +272,116 @@ function OnboardContent() {
     // ─── Submission Overlay ──────────────────────────────────────
     if (submission.status !== 'idle') {
         return (
-            <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
-                <div className="max-w-md w-full mx-auto text-center px-8 space-y-8">
+            <AnimatePresence mode="wait">
+                <motion.div
+                    className="fixed inset-0 bg-white z-50 flex items-center justify-center"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                >
+                    <motion.div
+                        className="max-w-md w-full mx-auto text-center px-8 space-y-8"
+                        variants={overlayVariants}
+                        initial="initial"
+                        animate="animate"
+                    >
+                        {/* Loading States */}
+                        {(submission.status === 'uploading-image' ||
+                            submission.status === 'polishing' ||
+                            submission.status === 'submitting') && (
+                                <>
+                                    <motion.div variants={overlayItem} className="relative">
+                                        <motion.div
+                                            animate={{ rotate: 360 }}
+                                            transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
+                                        >
+                                            <Loader2 className="w-16 h-16 text-orange-500 mx-auto" />
+                                        </motion.div>
+                                        <motion.div
+                                            className="absolute inset-0 rounded-full"
+                                            animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }}
+                                            transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                                            style={{ background: 'radial-gradient(circle, rgba(249,115,22,0.15) 0%, transparent 70%)' }}
+                                        />
+                                    </motion.div>
+                                    <motion.div variants={overlayItem} className="space-y-3">
+                                        <h2 className="text-2xl font-bold text-gray-900">Building Your Portfolio</h2>
+                                        <div className="space-y-2">
+                                            <ProgressStep label="Uploading profile image" done={submission.status !== 'uploading-image'} active={submission.status === 'uploading-image'} />
+                                            <ProgressStep label="Polishing your content" done={submission.status === 'submitting'} active={submission.status === 'polishing'} />
+                                            <ProgressStep label="Launching the AI pipeline" done={false} active={submission.status === 'submitting'} />
+                                        </div>
+                                    </motion.div>
+                                </>
+                            )}
 
-                    {/* Loading States */}
-                    {(submission.status === 'uploading-image' ||
-                        submission.status === 'polishing' ||
-                        submission.status === 'submitting') && (
+                        {/* Success */}
+                        {submission.status === 'success' && (
                             <>
-                                <div className="relative">
-                                    <Loader2 className="w-16 h-16 text-orange-500 animate-spin mx-auto" />
-                                </div>
-                                <div className="space-y-3">
-                                    <h2 className="text-2xl font-bold text-gray-900">
-                                        Building Your Portfolio
-                                    </h2>
-                                    <div className="space-y-2">
-                                        <ProgressStep
-                                            label="Uploading profile image"
-                                            done={submission.status !== 'uploading-image'}
-                                            active={submission.status === 'uploading-image'}
-                                        />
-                                        <ProgressStep
-                                            label="Polishing your content"
-                                            done={submission.status === 'submitting'}
-                                            active={submission.status === 'polishing'}
-                                        />
-                                        <ProgressStep
-                                            label="Launching the AI pipeline"
-                                            done={false}
-                                            active={submission.status === 'submitting'}
-                                        />
-                                    </div>
-                                </div>
+                                <motion.div variants={overlayItem}>
+                                    <motion.div
+                                        className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto"
+                                        initial={{ scale: 0, rotate: -180 }}
+                                        animate={{ scale: 1, rotate: 0 }}
+                                        transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
+                                    >
+                                        <Check className="w-10 h-10 text-green-600" />
+                                    </motion.div>
+                                </motion.div>
+                                <motion.div variants={overlayItem} className="space-y-3">
+                                    <h2 className="text-2xl font-bold text-gray-900">You&apos;re All Set! 🎉</h2>
+                                    <p className="text-gray-500 leading-relaxed">Your AI portfolio is being generated right now. It typically takes 2-3 minutes.</p>
+                                </motion.div>
+                                <motion.a
+                                    variants={overlayItem}
+                                    href={submission.magicLink}
+                                    className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white bg-neutral-900 rounded-xl hover:bg-neutral-800 transition-colors"
+                                    whileHover={buttonHover}
+                                    whileTap={buttonTap}
+                                >
+                                    Watch Progress <ExternalLink className="w-5 h-5 ml-2" />
+                                </motion.a>
                             </>
                         )}
 
-                    {/* Success */}
-                    {submission.status === 'success' && (
-                        <>
-                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                                <Check className="w-10 h-10 text-green-600" />
-                            </div>
-                            <div className="space-y-3">
-                                <h2 className="text-2xl font-bold text-gray-900">
-                                    You&apos;re All Set! 🎉
-                                </h2>
-                                <p className="text-gray-500 leading-relaxed">
-                                    Your AI portfolio is being generated right now. It typically takes 2-3 minutes.
-                                    We&apos;ll also send you a link via email.
-                                </p>
-                            </div>
-                            <a
-                                href={submission.magicLink}
-                                className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white bg-neutral-900 rounded-xl hover:bg-neutral-800 hover:shadow-lg transition-all duration-200 active:scale-95"
-                            >
-                                Watch Progress
-                                <ExternalLink className="w-5 h-5 ml-2" />
-                            </a>
-                        </>
-                    )}
-
-                    {/* Error */}
-                    {submission.status === 'error' && (
-                        <>
-                            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-                                <AlertCircle className="w-10 h-10 text-red-600" />
-                            </div>
-                            <div className="space-y-3">
-                                <h2 className="text-2xl font-bold text-gray-900">
-                                    Something Went Wrong
-                                </h2>
-                                <p className="text-gray-500 leading-relaxed">
-                                    {submission.message}
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => {
-                                    setSubmission({ status: 'idle' });
-                                    handleSubmit();
-                                }}
-                                className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white bg-neutral-900 rounded-xl hover:bg-neutral-800 transition-all duration-200"
-                            >
-                                <RefreshCw className="w-5 h-5 mr-2" />
-                                Try Again
-                            </button>
-                            <button
-                                onClick={() => setSubmission({ status: 'idle' })}
-                                className="block mx-auto mt-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
-                            >
-                                Back to form
-                            </button>
-                        </>
-                    )}
-                </div>
-            </div>
+                        {/* Error */}
+                        {submission.status === 'error' && (
+                            <>
+                                <motion.div variants={overlayItem}>
+                                    <motion.div
+                                        className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto"
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+                                    >
+                                        <AlertCircle className="w-10 h-10 text-red-600" />
+                                    </motion.div>
+                                </motion.div>
+                                <motion.div variants={overlayItem} className="space-y-3">
+                                    <h2 className="text-2xl font-bold text-gray-900">Something Went Wrong</h2>
+                                    <p className="text-gray-500 leading-relaxed">{submission.message}</p>
+                                </motion.div>
+                                <motion.button
+                                    variants={overlayItem}
+                                    onClick={() => { setSubmission({ status: 'idle' }); handleSubmit(); }}
+                                    className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white bg-neutral-900 rounded-xl"
+                                    whileHover={buttonHover}
+                                    whileTap={buttonTap}
+                                >
+                                    <RefreshCw className="w-5 h-5 mr-2" /> Try Again
+                                </motion.button>
+                                <motion.button
+                                    variants={overlayItem}
+                                    onClick={() => setSubmission({ status: 'idle' })}
+                                    className="block mx-auto mt-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    Back to form
+                                </motion.button>
+                            </>
+                        )}
+                    </motion.div>
+                </motion.div>
+            </AnimatePresence>
         );
     }
 
@@ -293,83 +393,166 @@ function OnboardContent() {
             onBack={handleBack}
             showBack={currentStepIndex > 0}
             formData={formData}
-            leftPanelContent={currentQuestion.illustration}
+            leftPanelContent={
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={`visual-${currentStepIndex}`}
+                        className="w-full h-full flex items-center justify-center"
+                        variants={visualTransition}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                    >
+                        {currentQuestion.illustration}
+                    </motion.div>
+                </AnimatePresence>
+            }
         >
-            <div
-                className={`h-full flex flex-col justify-center transition-all duration-300 ease-out ${isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}
-            >
-                <div className="flex-grow flex flex-col justify-center space-y-8">
-
-                    {/* Question Header */}
-                    <div className="space-y-4 animate-slide-up">
-                        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">
-                            {currentQuestion.title}
-                        </h1>
-                        <p className="text-lg text-gray-500 font-normal leading-relaxed max-w-xl">
-                            {currentQuestion.subtitle}
-                        </p>
-                    </div>
-
-                    {/* Input Area */}
-                    <div className="w-full animate-fade-in delay-100">
-                        {renderInput()}
-
-                        {currentQuestion.helperText && (
-                            <p className="mt-3 text-sm text-gray-400">
-                                {currentQuestion.helperText}
-                            </p>
-                        )}
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="pt-8 flex items-center justify-between mt-4">
-                        {!currentQuestion.required ? (
-                            <button
-                                onClick={handleNext}
-                                className="text-gray-400 hover:text-gray-600 text-sm font-medium px-2 py-2 transition-colors"
+            <AnimatePresence mode="wait" custom={direction}>
+                <motion.div
+                    key={`step-${currentStepIndex}`}
+                    custom={direction}
+                    variants={pageTransition}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    className="h-full flex flex-col justify-center"
+                >
+                    <motion.div
+                        className="flex-grow flex flex-col justify-center space-y-8"
+                        variants={stagger}
+                        initial="initial"
+                        animate="animate"
+                    >
+                        {/* Question Header */}
+                        <motion.div className="space-y-4" variants={fadeUp}>
+                            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">
+                                {currentQuestion.title}
+                            </h1>
+                            <motion.p
+                                className="text-lg text-gray-500 font-normal leading-relaxed max-w-xl"
+                                variants={fadeUp}
                             >
-                                Skip for now
-                            </button>
-                        ) : (
-                            <div></div>
-                        )}
+                                {currentQuestion.subtitle}
+                            </motion.p>
+                        </motion.div>
 
-                        <button
-                            onClick={handleNext}
-                            className="group relative inline-flex items-center justify-center px-8 py-3.5 text-base font-semibold text-white transition-all duration-200 bg-neutral-900 rounded-xl hover:bg-neutral-800 hover:shadow-lg hover:shadow-neutral-900/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-900 active:scale-95"
-                        >
-                            {isLastStep ? 'Finish Setup' : 'Continue'}
-                            {isLastStep ? (
-                                <Check className="w-5 h-5 ml-2" />
-                            ) : (
-                                <ArrowRight className="w-5 h-5 ml-2 transition-transform duration-200 group-hover:translate-x-1" />
+                        {/* Input Area */}
+                        <motion.div className="w-full" variants={fadeUp}>
+                            {renderInput()}
+
+                            {/* Inline validation error */}
+                            <AnimatePresence mode="wait">
+                                {validationError && (
+                                    <motion.p
+                                        key="validation-error"
+                                        className="mt-3 text-sm text-red-500 font-medium flex items-center gap-1.5"
+                                        initial={{ opacity: 0, y: -4, height: 0 }}
+                                        animate={{ opacity: 1, y: 0, height: 'auto' }}
+                                        exit={{ opacity: 0, y: -4, height: 0 }}
+                                        transition={{ type: 'spring', stiffness: 500, damping: 30, mass: 0.5 }}
+                                    >
+                                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+                                        {validationError}
+                                    </motion.p>
+                                )}
+                            </AnimatePresence>
+
+                            {currentQuestion.helperText && !validationError && (
+                                <motion.p
+                                    className="mt-3 text-sm text-gray-400"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ delay: 0.15 }}
+                                >
+                                    {currentQuestion.helperText}
+                                </motion.p>
                             )}
-                        </button>
-                    </div>
+                        </motion.div>
 
-                </div>
-            </div>
+                        {/* Action Buttons */}
+                        <motion.div className="pt-8 flex items-center justify-between mt-4" variants={fadeUp}>
+                            {!currentQuestion.required ? (
+                                <motion.button
+                                    onClick={handleNext}
+                                    className="text-gray-400 hover:text-gray-600 text-sm font-medium px-2 py-2 transition-colors"
+                                    whileHover={{ x: 3 }}
+                                >
+                                    Skip for now
+                                </motion.button>
+                            ) : (
+                                <div />
+                            )}
+
+                            <motion.button
+                                onClick={handleNext}
+                                className="group relative inline-flex items-center justify-center px-8 py-3.5 text-base font-semibold text-white bg-neutral-900 rounded-xl overflow-hidden"
+                                whileHover={buttonHover}
+                                whileTap={buttonTap}
+                            >
+                                {/* Gradient shimmer on hover */}
+                                <motion.div
+                                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+                                    initial={{ x: '-100%' }}
+                                    whileHover={{ x: '100%' }}
+                                    transition={{ duration: 0.6, ease: 'easeInOut' }}
+                                />
+                                <span className="relative z-10 flex items-center">
+                                    {isLastStep ? 'Finish Setup' : 'Continue'}
+                                    {isLastStep ? (
+                                        <motion.span className="ml-2" initial={{ rotate: 0 }} whileHover={{ rotate: 360 }} transition={{ duration: 0.4 }}>
+                                            <Check className="w-5 h-5" />
+                                        </motion.span>
+                                    ) : (
+                                        <motion.span className="ml-2 inline-flex" whileHover={{ x: 4 }} transition={{ type: 'spring', stiffness: 400 }}>
+                                            <ArrowRight className="w-5 h-5" />
+                                        </motion.span>
+                                    )}
+                                </span>
+                            </motion.button>
+                        </motion.div>
+                    </motion.div>
+                </motion.div>
+            </AnimatePresence>
         </OnboardingLayout>
     );
 }
 
 /** Progress step indicator for the submission overlay */
 const ProgressStep: React.FC<{ label: string; done: boolean; active: boolean }> = ({ label, done, active }) => (
-    <div className={`flex items-center gap-3 py-1.5 transition-all duration-300 ${active ? 'text-orange-600' : done ? 'text-green-600' : 'text-gray-300'}`}>
+    <motion.div
+        className={`flex items-center gap-3 py-1.5 transition-all duration-300 ${active ? 'text-orange-600' : done ? 'text-green-600' : 'text-gray-300'}`}
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+    >
         {done ? (
-            <Check className="w-4 h-4 flex-shrink-0" />
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400 }}>
+                <Check className="w-4 h-4 flex-shrink-0" />
+            </motion.div>
         ) : active ? (
-            <Loader2 className="w-4 h-4 flex-shrink-0 animate-spin" />
+            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+                <Loader2 className="w-4 h-4 flex-shrink-0" />
+            </motion.div>
         ) : (
             <div className="w-4 h-4 rounded-full border-2 border-current flex-shrink-0" />
         )}
         <span className="text-sm font-medium">{label}</span>
-    </div>
+    </motion.div>
 );
 
 export default function OnboardPage() {
     return (
-        <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-white"><Loader2 className="w-8 h-8 text-orange-500 animate-spin" /></div>}>
+        <Suspense fallback={
+            <div className="h-screen w-screen flex items-center justify-center bg-white">
+                <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                >
+                    <Loader2 className="w-8 h-8 text-orange-500" />
+                </motion.div>
+            </div>
+        }>
             <OnboardContent />
         </Suspense>
     );

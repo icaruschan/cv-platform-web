@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { OnboardingData } from './types';
 
@@ -22,64 +23,103 @@ export const OnboardingLayout: React.FC<LayoutProps> = ({
     showBack,
     leftPanelContent
 }) => {
-    // Calculate progress percentage
     const progress = Math.min(((currentStep) / totalSteps) * 100, 100);
 
     return (
         <div className="min-h-screen w-full flex bg-white font-sans">
 
-            {/* Left Side - Visual Panel (Hidden on Mobile) */}
+            {/* Left Side - Visual Panel */}
             <div className="hidden lg:flex w-5/12 h-screen sticky top-0 bg-[#faf9f7] items-center justify-center overflow-hidden relative">
                 {/* Logo */}
-                <div className="absolute top-8 left-8 z-20">
+                <motion.div
+                    className="absolute top-8 left-8 z-20"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.3 }}
+                >
                     <img src="/logo.svg" alt="Portfolio Alchemy" className="h-10 w-auto" />
-                </div>
+                </motion.div>
 
-                <div className="absolute bottom-8 left-8 z-20 border-l-4 border-orange-400 pl-4 max-w-xs">
+                <motion.div
+                    className="absolute bottom-8 left-8 z-20 border-l-4 border-orange-400 pl-4 max-w-xs"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ type: 'spring', stiffness: 200, damping: 25, delay: 0.6 }}
+                >
                     <p className="text-neutral-600 text-sm italic font-medium leading-relaxed">
                         &quot;Your story is what sets you apart. Make it memorable.&quot;
                     </p>
-                </div>
+                </motion.div>
 
-                {/* The Main Visual Content */}
+                {/* The Main Visual Content — animated externally in page.tsx */}
                 <div className="w-full h-full p-12 relative z-10 flex items-center justify-center">
                     {leftPanelContent}
                 </div>
 
-                {/* Global decorative background element for left panel */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/40 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2"></div>
-                <div className="absolute bottom-0 left-0 w-64 h-64 bg-orange-100/30 blur-3xl rounded-full translate-y-1/2 -translate-x-1/2"></div>
+                {/* Decorative blurs */}
+                <motion.div
+                    className="absolute top-0 right-0 w-64 h-64 bg-white/40 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2"
+                    animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.6, 0.4] }}
+                    transition={{ repeat: Infinity, duration: 8, ease: 'easeInOut' }}
+                />
+                <motion.div
+                    className="absolute bottom-0 left-0 w-64 h-64 bg-orange-100/30 blur-3xl rounded-full translate-y-1/2 -translate-x-1/2"
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+                    transition={{ repeat: Infinity, duration: 10, ease: 'easeInOut', delay: 2 }}
+                />
             </div>
 
             {/* Right Side - Form Interaction */}
             <div className="w-full lg:w-7/12 flex flex-col min-h-screen relative bg-white">
 
-                {/* Desktop Progress Header */}
+                {/* Progress Header */}
                 <div className="px-8 md:px-16 pt-12 pb-6 max-w-3xl mx-auto w-full">
                     <div className="flex justify-between items-end mb-4 text-xs font-bold tracking-widest text-gray-400 uppercase">
-                        <span className="text-gray-900">Step {currentStep} of {totalSteps}</span>
-                        <button className="hover:text-orange-600 transition-colors flex items-center gap-1 group">
+                        <motion.span
+                            key={currentStep}
+                            className="text-gray-900"
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                        >
+                            Step {currentStep} of {totalSteps}
+                        </motion.span>
+                        <motion.button
+                            className="hover:text-orange-600 transition-colors flex items-center gap-1 group"
+                            whileHover={{ x: 2 }}
+                        >
                             Save & Exit
                             <span className="text-lg leading-none transition-transform group-hover:translate-x-1">→</span>
-                        </button>
+                        </motion.button>
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                        <div
-                            className="bg-orange-500 h-full rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(249,115,22,0.3)]"
-                            style={{ width: `${progress}%` }}
-                        ></div>
+                        <motion.div
+                            className="bg-orange-500 h-full rounded-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progress}%` }}
+                            transition={{ type: 'spring', stiffness: 100, damping: 20, mass: 0.5 }}
+                            style={{ boxShadow: '0 0 12px rgba(249,115,22,0.4)' }}
+                        />
                     </div>
                 </div>
 
-                {/* Navigation - Back Button */}
+                {/* Back Button */}
                 <div className="px-8 md:px-16 pt-2 max-w-3xl mx-auto w-full h-8">
-                    <button
+                    <motion.button
                         onClick={onBack}
-                        className={`flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors group ${showBack ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                        className="flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors group"
+                        initial={false}
+                        animate={{
+                            opacity: showBack ? 1 : 0,
+                            x: showBack ? 0 : -10,
+                            pointerEvents: showBack ? 'auto' as const : 'none' as const,
+                        }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                        whileHover={{ x: -3 }}
                     >
-                        <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+                        <ArrowLeft className="w-4 h-4" />
                         <span className="font-medium text-sm">Back</span>
-                    </button>
+                    </motion.button>
                 </div>
 
                 {/* Main Content Area */}
@@ -87,7 +127,7 @@ export const OnboardingLayout: React.FC<LayoutProps> = ({
                     {children}
                 </div>
 
-                {/* Mobile Header (Only visible on small screens) */}
+                {/* Mobile Header */}
                 <div className="lg:hidden fixed top-0 left-0 w-full bg-white border-b border-gray-100 p-4 z-50 flex justify-between items-center shadow-sm">
                     <div className="flex items-center gap-2">
                         <div className="w-6 h-6 bg-neutral-900 rounded flex items-center justify-center">
