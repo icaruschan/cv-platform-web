@@ -19,8 +19,8 @@ const satisfy = Satisfy({
 });
 
 export const metadata: Metadata = {
-  title: "Portfolio Alchemy",
-  description: "AI-designed portfolios that get you hired.",
+  title: "ideate",
+  description: "AI-designed CVs and portfolios that get you hired.",
 };
 
 export default function RootLayout({

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 const polar = new Polar({
     accessToken: process.env.POLAR_ACCESS_TOKEN!,
-    server: process.env.NODE_ENV === "development" ? "sandbox" : "production",
+    server: "sandbox", // Temporarily forced to sandbox, as the user is using sandbox tokens in production
 });
 
 // The onboarding app URL — pass checkout_id after successful payment
