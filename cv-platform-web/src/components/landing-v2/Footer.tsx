@@ -1,3 +1,6 @@
+"use client";
+
+import { motion } from "framer-motion";
 import { IdeateLogo } from "@/components/ui/IdeateLogo";
 import Link from "next/link";
 import { TwitterLogo, InstagramLogo, LinkedinLogo } from "@phosphor-icons/react/dist/ssr";
@@ -24,8 +27,14 @@ const footerLinks = {
 
 export function Footer() {
     return (
-        <footer className="bg-neutral-900 text-white pt-24 pb-12 overflow-hidden relative">
-            <div className="max-w-[1600px] mx-auto px-6 md:px-12 relative z-10">
+        <footer className="bg-neutral-900 text-white pt-16 md:pt-24 pb-12 overflow-hidden relative">
+            <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className="max-w-[1600px] mx-auto px-6 md:px-12 relative z-10"
+            >
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-8 mb-20">
                     {/* Brand Column */}
                     <div className="md:col-span-4 space-y-6">
@@ -93,7 +102,7 @@ export function Footer() {
                         Designed for creatives, by creatives.
                     </p>
                 </div>
-            </div>
+            </motion.div>
 
             {/* Background Blob */}
             <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-orange-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />

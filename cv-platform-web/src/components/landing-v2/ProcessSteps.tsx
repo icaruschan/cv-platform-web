@@ -32,8 +32,8 @@ export function ProcessSteps() {
     ];
 
     return (
-        <section className="py-24 md:py-32 px-6 md:px-12 bg-[#faf9f7] overflow-hidden">
-            <div className="max-w-[1480px] mx-auto space-y-24 md:space-y-32">
+        <section className="py-12 md:py-32 px-4 md:px-12 bg-[#faf9f7] overflow-hidden">
+            <div className="max-w-[1480px] mx-auto space-y-16 md:space-y-32">
                 {steps.map((step, index) => (
                     <motion.div
                         key={step.id}
@@ -41,7 +41,7 @@ export function ProcessSteps() {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true, margin: "-100px" }}
                         transition={{ duration: 0.7, ease: "easeOut" }}
-                        className={`flex flex-col md:flex-row items-center gap-12 md:gap-20 ${index % 2 === 1 ? "md:flex-row-reverse" : ""
+                        className={`flex flex-col md:flex-row items-center gap-8 md:gap-20 ${index % 2 === 1 ? "md:flex-row-reverse" : ""
                             }`}
                     >
                         {/* Text Side */}
@@ -52,13 +52,19 @@ export function ProcessSteps() {
                             <h2 className="font-serif text-3xl md:text-[40px] text-neutral-900 leading-tight">
                                 {step.title}
                             </h2>
-                            <p className="text-lg text-neutral-600 leading-relaxed max-w-lg">
+                            <p className="text-base md:text-lg text-neutral-600 leading-relaxed max-w-lg">
                                 {step.description}
                             </p>
                         </div>
 
                         {/* Visual Side */}
-                        <div className="w-full md:w-7/12">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 30 }}
+                            whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                            viewport={{ once: true, margin: "-50px" }}
+                            transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
+                            className="w-full md:w-7/12"
+                        >
                             <div className="relative group perspective-1000">
                                 {/* Browser Frame Container */}
                                 <div className="relative rounded-xl overflow-hidden bg-neutral-900 shadow-2xl border border-neutral-200/50 transform transition-transform duration-700 hover:scale-[1.01] hover:-rotate-1">
@@ -87,7 +93,7 @@ export function ProcessSteps() {
                                 {/* Decorative Backdrop Blur */}
                                 <div className={`absolute -inset-4 bg-gradient-to-r ${index % 2 === 0 ? 'from-orange-100 to-blue-50' : 'from-blue-50 to-purple-50'} opacity-50 blur-2xl -z-10 rounded-[3rem] transition-opacity duration-500 group-hover:opacity-75`} />
                             </div>
-                        </div>
+                        </motion.div>
                     </motion.div>
                 ))}
             </div>

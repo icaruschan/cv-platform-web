@@ -106,16 +106,22 @@ const showcaseItems = [
 
 export function ShowcaseGallery() {
     return (
-        <section className="py-12 bg-orange-50 overflow-hidden">
+        <section className="py-8 md:py-12 bg-orange-50 overflow-hidden">
             <div className="space-y-8">
 
                 {/* Header */}
-                <div className="max-w-[1600px] mx-auto px-6 md:px-12">
-                    <h2 className="text-[64px] font-serif font-medium text-orange-900 tracking-tight leading-none flex items-center gap-3">
+                <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-50px" }}
+                    transition={{ duration: 0.7, ease: "easeOut" }}
+                    className="max-w-[1600px] mx-auto px-6 md:px-12"
+                >
+                    <h2 className="text-2xl sm:text-4xl md:text-[64px] font-serif font-medium text-orange-900 tracking-tight leading-none flex flex-wrap items-center gap-2 md:gap-3">
                         <span>Made with</span>
-                        <IdeateLogo className="h-14 md:h-[72px] w-auto" textColor="#7c2d12" />
+                        <IdeateLogo className="h-6 sm:h-10 md:h-[72px] w-auto" textColor="#7c2d12" />
                     </h2>
-                </div>
+                </motion.div>
 
                 {/* Marquee Rows */}
                 <div className="space-y-6">
@@ -165,7 +171,7 @@ function Marquee({ children, direction, speed }: { children: React.ReactNode; di
 function Card({ site }: { site: any }) {
     // Fixed height, consistent 16:9 aspect ratio for all
     return (
-        <div className={`relative h-[400px] aspect-video rounded-3xl ${site.color} flex-shrink-0 group cursor-pointer overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500`}>
+        <div className={`relative h-[200px] sm:h-[280px] md:h-[400px] aspect-video rounded-2xl md:rounded-3xl ${site.color} flex-shrink-0 group cursor-pointer overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500`}>
             {/* Image Background */}
             <div className="absolute inset-0">
                 <Image

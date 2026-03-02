@@ -5,16 +5,16 @@ import Image from "next/image";
 
 export function FeatureDeepDive() {
     return (
-        <section className="py-32 bg-neutral-900 text-white overflow-hidden relative">
+        <section className="py-16 md:py-32 bg-neutral-900 text-white overflow-hidden relative">
             {/* Background Glow */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-500/20 rounded-full blur-[120px] pointer-events-none" />
 
-            <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10 text-center space-y-16">
-                <div className="max-w-3xl mx-auto space-y-6">
-                    <h2 className="font-serif text-3xl md:text-[44px]">
+            <div className="max-w-7xl mx-auto px-4 md:px-12 relative z-10 text-center space-y-10 md:space-y-16">
+                <div className="max-w-3xl mx-auto space-y-4 md:space-y-6">
+                    <h2 className="font-serif text-2xl sm:text-3xl md:text-[44px]">
                         Control without the Code
                     </h2>
-                    <p className="text-lg text-neutral-400 leading-relaxed">
+                    <p className="text-base md:text-lg text-neutral-400 leading-relaxed max-w-md md:max-w-none mx-auto">
                         Our intelligent editor gives you the power of a developer with the ease of a conversation.
                         Real-time previews, instant updates, and zero deployment headaches.
                     </p>

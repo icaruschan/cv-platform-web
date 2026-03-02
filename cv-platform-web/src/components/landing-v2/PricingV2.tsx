@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { Check } from "@phosphor-icons/react";
 import Link from "next/link";
 
@@ -13,19 +14,31 @@ export function PricingV2() {
     ];
 
     return (
-        <section className="py-32 px-6 md:px-12 bg-white">
+        <section className="py-16 md:py-32 px-4 md:px-12 bg-white">
             <div className="max-w-5xl mx-auto">
-                <div className="text-center mb-16 space-y-4">
-                    <h2 className="font-serif text-[44px] text-neutral-900">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-50px" }}
+                    transition={{ duration: 0.6 }}
+                    className="text-center mb-16 space-y-4"
+                >
+                    <h2 className="font-serif text-2xl sm:text-3xl md:text-[44px] text-neutral-900">
                         Simple, Transparent Pricing
                     </h2>
-                    <p className="text-lg text-neutral-500">
+                    <p className="text-base md:text-lg text-neutral-500">
                         Invest in your career with a plan that pays for itself.
                     </p>
-                </div>
+                </motion.div>
 
                 {/* The Card */}
-                <div className="relative bg-white rounded-3xl p-8 md:p-12 shadow-2xl border border-neutral-100 overflow-hidden group hover:border-orange-200 transition-colors duration-500 max-w-lg mx-auto">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 30 }}
+                    whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-50px" }}
+                    transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
+                    className="relative bg-white rounded-2xl md:rounded-3xl p-6 md:p-12 shadow-2xl border border-neutral-100 overflow-hidden group hover:border-orange-200 transition-colors duration-500 max-w-lg mx-auto"
+                >
                     {/* Decorative Background Blob */}
                     <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-orange-100/30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
@@ -60,7 +73,7 @@ export function PricingV2() {
                             Build Your Portfolio
                         </a>
                     </div>
-                </div>
+                </motion.div>
             </div>
         </section>
     );

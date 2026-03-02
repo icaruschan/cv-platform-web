@@ -1,3 +1,6 @@
+"use client";
+
+import { motion } from "framer-motion";
 import { Star } from "@phosphor-icons/react/dist/ssr";
 
 export function Testimonials() {
@@ -23,13 +26,28 @@ export function Testimonials() {
     ];
 
     return (
-        <section className="py-24 px-4 bg-[#faf9f7]">
+        <section className="py-12 md:py-24 px-4 md:px-6 bg-[#faf9f7]">
             <div className="max-w-7xl mx-auto">
-                <h2 className="font-serif text-[44px] text-neutral-900 text-center mb-16">Loved by creatives.</h2>
+                <motion.h2
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-50px" }}
+                    transition={{ duration: 0.6 }}
+                    className="font-serif text-2xl sm:text-3xl md:text-[44px] text-neutral-900 text-center mb-10 md:mb-16"
+                >
+                    Loved by creatives.
+                </motion.h2>
 
                 <div className="grid md:grid-cols-3 gap-8">
                     {testimonials.map((t, i) => (
-                        <div key={i} className="bg-white p-8 rounded-2xl border border-neutral-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+                        <motion.div
+                            key={i}
+                            initial={{ opacity: 0, y: 30 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, margin: "-50px" }}
+                            transition={{ duration: 0.6, delay: i * 0.15, ease: "easeOut" }}
+                            className="bg-white p-5 md:p-8 rounded-2xl border border-neutral-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1"
+                        >
                             <div className="flex gap-1 mb-6 text-yellow-400">
                                 {[...Array(5)].map((_, i) => (
                                     <Star key={i} weight="fill" className="w-4 h-4" />
@@ -49,7 +67,7 @@ export function Testimonials() {
                                     <p className="text-neutral-500 text-[11px] uppercase tracking-wider font-semibold">{t.role}</p>
                                 </div>
                             </div>
-                        </div>
+                        </motion.div>
                     ))}
                 </div>
             </div>
